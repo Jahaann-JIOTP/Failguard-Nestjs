@@ -200,7 +200,7 @@ export class DashboardService {
 
     const data = await this.collection.aggregate(pipeline).toArray();
 
-    console.log(`Fetched ${data.length} records from database`);
+    // console.log(`Fetched ${data.length} records from database`);
 
     if (!data.length) {
       console.log('No data found for query:', { mode, start, end });
@@ -424,7 +424,7 @@ export class DashboardService {
   private getFromCache(key: string): any {
     const cached = this.cache.get(key);
     if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
-      console.log(`⚡ Cache hit for: ${key}`);
+      // console.log(`⚡ Cache hit for: ${key}`);
       return cached.data;
     }
     return null;

@@ -8,14 +8,14 @@ export class PrewarmService implements OnModuleInit, OnModuleDestroy {
   constructor(private readonly trendsService: TrendsService) {}
 
   async onModuleInit() {
-    console.log('🚀 Prewarming cache (startup)...');
+    // console.log('🚀 Prewarming cache (startup)...');
     await this.runPrewarm();
 
     // ♻️ Auto-refresh every 10 minutes (customize interval here)
     this.refreshInterval = setInterval(
       () => {
         this.runPrewarm().catch((err) =>
-          console.error('⚠️ Cache refresh failed:', err.message),
+          console.error(' refresh failed:', err.message),
         );
       },
       10 * 60 * 1000,

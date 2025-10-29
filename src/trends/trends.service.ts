@@ -430,7 +430,7 @@ export class TrendsService {
       }));
 
       cache.set(baseKey, baseData);
-      console.log(`🧠 Base data cached: ${baseData.length} records`);
+      // console.log(`🧠 Base data cached: ${baseData.length} records`);
     }
 
     // ✅ Step 2: Multi-point formulas (parallel)

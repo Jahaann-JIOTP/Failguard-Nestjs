@@ -86,7 +86,7 @@ export class AlarmsController {
     return this.alarmsService.getAlarmTypeByAlarmId(dto.alarmId);
   }
 
-  @Get('/active-alarms')
+  @Get('active-alarms')
   getActiveAlarms() {
     return this.alarmsService.processActiveAlarms();
   }
