@@ -24,8 +24,8 @@ async function bootstrap() {
     allowedDevOrigins: true,
   });
 
-  await app.listen(process.env.PORT ?? 5000);
-  Logger.log('🚀 Application running on http://localhost:5000');
+  await app.listen(process.env.PORT ?? 5056);
+  Logger.log('🚀 Application running on http://localhost:5056');
 }
 
 bootstrap();
