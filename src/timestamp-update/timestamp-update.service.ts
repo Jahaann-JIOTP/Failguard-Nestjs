@@ -10,7 +10,7 @@ export class TimestampUpdateService {
   private collection;
 
   constructor(@Inject('MONGO_CLIENT') private readonly db: Db) {
-    this.collection = this.db.collection('navy_historical');
+    this.collection = this.db.collection('navy');
   }
 
   /**

@@ -21,7 +21,7 @@ export class DashboardService {
     @Inject('MONGO_CLIENT') private readonly db: Db,
     private readonly formulas: FormulasService,
   ) {
-    this.collection = this.db.collection('navy_historical');
+    this.collection = this.db.collection('navy');
   }
 
   /** -------------------

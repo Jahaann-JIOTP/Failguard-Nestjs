@@ -5,10 +5,10 @@ export const DatabaseProvider: Provider = {
   provide: 'MONGO_CLIENT',
   useFactory: async () => {
     const uri =
-      'mongodb+srv://alihamza:1uEiKEgyCfNg57qb@cluster0.rtxdhjc.mongodb.net/navy?retryWrites=true&w=majority&appName=Cluster0';
+      'mongodb://admin:cisco123@13.234.241.103:27017/?authSource=iotdb&readPreference=primary&ssl=false';
     const client = new MongoClient(uri);
     await client.connect();
     console.log('✅ Connected to MongoDB');
-    return client.db('navy');
+    return client.db('iotdb');
   },
 };

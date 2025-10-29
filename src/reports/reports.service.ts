@@ -14,7 +14,7 @@ export class ReportsService {
     @Inject('MONGO_CLIENT') private readonly db: Db,
     private readonly formulasService: FormulasService,
   ) {
-    this.collection = this.db.collection('navy_historical');
+    this.collection = this.db.collection('navy');
     this.collection.createIndex({ timestamp: 1 });
   }
 
