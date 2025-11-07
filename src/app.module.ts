@@ -20,9 +20,7 @@ import { AlarmsModule } from './alarms/alarms.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
-    MongooseModule.forRoot(
-      process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/navy',
-    ), // Default connection, no connectionName
+    MongooseModule.forRoot(process.env.MONGODB_URI || ''), // Default connection, no connectionName
     UsersModule,
     AuthModule,
     RolesModule,
