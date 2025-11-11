@@ -18,7 +18,7 @@ export class NodeRedLinkService {
   async fetchDataFromNodeRed() {
     try {
       const response = await this.httpService.axiosRef.get(
-        'http://127.0.0.1:1880/navy',
+        'http://13.234.241.103:1880/navy',
       );
 
       const data = response.data;

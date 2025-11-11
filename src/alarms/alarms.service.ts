@@ -886,7 +886,7 @@ export class AlarmsService {
 
     // ✅ 1️⃣ Get Node-RED real-time data
     const resp = await firstValueFrom(
-      this.httpService.get('http://127.0.0.1:1880/navy'),
+      this.httpService.get('http://13.234.241.103:1880/navy'),
     );
 
     const payload = resp.data as Record<string, any>;
