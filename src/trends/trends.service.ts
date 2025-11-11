@@ -1845,41 +1845,71 @@ export class TrendsService {
 
   //   const finalKey = this.buildCacheKey(payload);
 
-  //   // ⚡ Return from cache if available
+  //   // ⚡ Cache check
   //   if (!force && cache.has(finalKey)) {
   //     console.log(`⚡ Cache hit for ${mode} (${startDate} → ${endDate})`);
-  //     const data = cache.get(finalKey);
-  //     console.log(
-  //       `⚡ Returned from cache in ${performance.now() - startPerf} ms`,
-  //     );
-  //     return data;
+  //     return cache.get(finalKey);
   //   }
 
-  //   // Build Mongo query
+  //   // ✅ Parse incoming date strings
+  //   const startISO = new Date(startDate);
+  //   const endISO = new Date(endDate);
+
+  //   // 🧠 Smart date range check
+  //   if (isNaN(startISO.getTime()) || isNaN(endISO.getTime())) {
+  //     throw new Error('Invalid date format — must be ISO string or Date');
+  //   }
+
   //   let query: any = {};
+
+  //   // 🔍 Detect field type (string or date)
+  //   const sampleDoc = await this.collection.findOne(
+  //     {},
+  //     { projection: { timestamp: 1 } },
+  //   );
+  //   const timestampType =
+  //     sampleDoc && typeof sampleDoc.timestamp === 'string' ? 'string' : 'date';
+
+  //   // 🧠 Build query based on timestamp type
+  //   const makeTimestampQuery = (start: Date, end: Date) => {
+  //     if (timestampType === 'string') {
+  //       return {
+  //         timestamp: {
+  //           $gte: start.toISOString(),
+  //           $lte: end.toISOString(),
+  //         },
+  //       };
+  //     } else {
+  //       return {
+  //         timestamp: {
+  //           $gte: start,
+  //           $lte: end,
+  //         },
+  //       };
+  //     }
+  //   };
+
   //   if (mode === 'historic' || mode === 'range') {
   //     if (!startDate || !endDate)
   //       throw new Error('startDate and endDate are required');
 
-  //     let startISO = new Date(startDate);
-  //     let endISO = new Date(endDate);
+  //     let start = startISO;
+  //     let end = endISO;
 
-  //     // Auto-expand single-day range
-  //     if (startISO.getTime() === endISO.getTime()) {
-  //       endISO = new Date(startISO.getTime() + 24 * 60 * 60 * 1000 - 1);
+  //     // Auto-expand 1-day range
+  //     if (start.getTime() === end.getTime()) {
+  //       end = new Date(start.getTime() + 24 * 60 * 60 * 1000 - 1);
   //       console.log(
-  //         `🕓 Auto-expanded single-day range: ${startISO.toISOString()} → ${endISO.toISOString()}`,
+  //         `🕓 Expanded single-day: ${start.toISOString()} → ${end.toISOString()}`,
   //       );
   //     }
 
   //     if (mode === 'range') {
   //       const [runRange] = await this.collection
   //         .aggregate([
+  //           { $match: makeTimestampQuery(start, end) },
   //           {
-  //             $match: {
-  //               timestamp: { $gte: startISO, $lte: endISO },
-  //               Genset_Run_SS: { $gte: 1, $lte: 6 },
-  //             },
+  //             $match: { Genset_Run_SS: { $gte: 1, $lte: 6 } },
   //           },
   //           {
   //             $group: {
@@ -1892,25 +1922,26 @@ export class TrendsService {
   //         .toArray();
 
   //       if (runRange?.minTime && runRange?.maxTime) {
-  //         query = {
-  //           timestamp: { $gte: runRange.minTime, $lte: runRange.maxTime },
-  //         };
+  //         query = makeTimestampQuery(
+  //           new Date(runRange.minTime),
+  //           new Date(runRange.maxTime),
+  //         );
   //       } else {
-  //         console.log('⚠️ No genset running data found in range');
+  //         // console.log('⚠️ No genset running data found in range');
   //         return [];
   //       }
   //     } else {
-  //       query = { timestamp: { $gte: startISO, $lte: endISO } };
+  //       query = makeTimestampQuery(start, end);
   //     }
   //   } else if (mode === 'live') {
   //     const now = moment().tz('Asia/Karachi');
   //     const sixHoursAgo = now.clone().subtract(6, 'hours').toDate();
-  //     query = { timestamp: { $gte: sixHoursAgo } };
+  //     query = makeTimestampQuery(sixHoursAgo, now.toDate());
   //   } else {
   //     throw new Error('Invalid mode');
   //   }
 
-  //   // Dependency map
+  //   // ⚡ Dependencies map
   //   const dependencyMap: Record<string, string[]> = {
   //     Load_Percent: ['Genset_Total_kW', 'Genset_Application_kW_Rating_PC2X'],
   //     Voltage_Imbalance: [
@@ -1947,7 +1978,7 @@ export class TrendsService {
   //     Fuel_Flow_Change: ['Fuel_Rate'],
   //   };
 
-  //   // Fetch base data
+  //   // ⚡ Fetch base data
   //   let baseData: any[] = (cache.get(baseKey) as any[]) || [];
   //   if (force || baseData.length === 0) {
   //     const projectionBase: Record<string, number> = { timestamp: 1 };
@@ -1983,7 +2014,10 @@ export class TrendsService {
   //     const map = new Map<string, any>();
   //     for (const batch of results) {
   //       for (const doc of batch) {
-  //         const key = doc.timestamp.toISOString();
+  //         const key =
+  //           timestampType === 'string'
+  //             ? doc.timestamp
+  //             : doc.timestamp.toISOString();
   //         if (!map.has(key)) map.set(key, { timestamp: doc.timestamp });
   //         Object.assign(map.get(key), doc);
   //       }
@@ -1991,18 +2025,23 @@ export class TrendsService {
 
   //     baseData = Array.from(map.values()).map((doc) => ({
   //       ...doc,
-  //       timestamp: moment(doc.timestamp)
-  //         .tz('Asia/Karachi')
-  //         .format('YYYY-MM-DD HH:mm:ss.SSS'),
+  //       timestamp:
+  //         timestampType === 'string'
+  //           ? moment(doc.timestamp)
+  //               .tz('Asia/Karachi')
+  //               .format('YYYY-MM-DD HH:mm:ss.SSS')
+  //           : moment(doc.timestamp)
+  //               .tz('Asia/Karachi')
+  //               .format('YYYY-MM-DD HH:mm:ss.SSS'),
   //     }));
 
   //     cache.set(baseKey, baseData);
   //     console.log(
-  //       `🧠 Base data cached (${baseData.length} records) for ${startDate} → ${endDate}`,
+  //       `🧠 Cached ${baseData.length} records (${timestampType}-timestamp mode)`,
   //     );
   //   }
 
-  //   // Multi-point formulas
+  //   // Formula calculations
   //   const calcPromises: Promise<{ key: string; val: any }>[] = [];
   //   const addCachedFormula = (param: string, fn: () => any) => {
   //     const key = `${param}_${baseKey}`;
@@ -2035,7 +2074,7 @@ export class TrendsService {
   //   const resultsArray = await Promise.all(calcPromises);
   //   const results = Object.fromEntries(resultsArray.map((r) => [r.key, r.val]));
 
-  //   // Single-point formulas
+  //   // Single point formulas
   //   const singlePointData = baseData.map((doc) => {
   //     const record: any = { timestamp: doc.timestamp };
   //     for (const param of selectedParams) {
@@ -2093,7 +2132,7 @@ export class TrendsService {
   //     return record;
   //   });
 
-  //   // Merge multi-point results
+  //   // Merge + live reduce
   //   let merged = singlePointData.map((record) => {
   //     const timestamp = record.timestamp;
   //     for (const [param, arr] of Object.entries(results)) {
@@ -2103,10 +2142,9 @@ export class TrendsService {
   //     return record;
   //   });
 
-  //   // Live mode reduce
   //   if (mode === 'live') {
-  //     const fiveMinData: any[] = [];
   //     const seen: Record<string, boolean> = {};
+  //     const reduced: any[] = [];
   //     for (const doc of merged) {
   //       const rounded = moment(doc.timestamp)
   //         .startOf('minute')
@@ -2114,30 +2152,28 @@ export class TrendsService {
   //         .format('YYYY-MM-DD HH:mm');
   //       if (!seen[rounded]) {
   //         seen[rounded] = true;
-  //         fiveMinData.push(doc);
+  //         reduced.push(doc);
   //       }
   //     }
-  //     merged = fiveMinData;
+  //     merged = reduced;
   //   }
 
-  //   // ✅ Remove zero fields only for range mode
   //   if (mode === 'range') {
   //     merged = merged
-  //       .map((record) => {
-  //         const cleaned: any = { timestamp: record.timestamp };
-  //         for (const [key, value] of Object.entries(record)) {
-  //           if (key === 'timestamp') continue;
-  //           if (value !== 0 && value !== null && value !== undefined)
-  //             cleaned[key] = value;
+  //       .map((r) => {
+  //         const cleaned: any = { timestamp: r.timestamp };
+  //         for (const [k, v] of Object.entries(r)) {
+  //           if (k === 'timestamp') continue;
+  //           if (v !== 0 && v !== null && v !== undefined) cleaned[k] = v;
   //         }
   //         return cleaned;
   //       })
-  //       .filter((record) => Object.keys(record).length > 1); // remove empty records
+  //       .filter((r) => Object.keys(r).length > 1);
   //   }
 
   //   cache.set(finalKey, merged);
   //   console.log(
-  //     `✅ Response ready in ${(performance.now() - startPerf).toFixed(2)} ms`,
+  //     `✅ Response ready in ${(performance.now() - startPerf).toFixed(2)} ms (timestamp type: ${timestampType})`,
   //   );
   //   return merged;
   // }
@@ -2166,15 +2202,29 @@ export class TrendsService {
     // ⚡ Return from cache if available
     if (!force && cache.has(finalKey)) {
       console.log(`⚡ Cache hit for ${mode} (${startDate} → ${endDate})`);
-      const data = cache.get(finalKey);
-      console.log(
-        `⚡ Returned from cache in ${performance.now() - startPerf} ms`,
-      );
-      return data;
+      return cache.get(finalKey);
     }
 
-    // Build Mongo query
     let query: any = {};
+
+    // 🔍 Detect timestamp field type
+    const sampleDoc = await this.collection.findOne(
+      {},
+      { projection: { timestamp: 1 } },
+    );
+    const timestampType =
+      sampleDoc && typeof sampleDoc.timestamp === 'string' ? 'string' : 'date';
+
+    const makeTimestampQuery = (start: Date, end: Date) => {
+      if (timestampType === 'string') {
+        return {
+          timestamp: { $gte: start.toISOString(), $lte: end.toISOString() },
+        };
+      } else {
+        return { timestamp: { $gte: start, $lte: end } };
+      }
+    };
+
     if (mode === 'historic' || mode === 'range') {
       if (!startDate || !endDate)
         throw new Error('startDate and endDate are required');
@@ -2182,22 +2232,22 @@ export class TrendsService {
       let startISO = new Date(startDate);
       let endISO = new Date(endDate);
 
+      if (isNaN(startISO.getTime()) || isNaN(endISO.getTime()))
+        throw new Error('Invalid date format — must be ISO string or Date');
+
+      // Auto-expand single-day range
       if (startISO.getTime() === endISO.getTime()) {
         endISO = new Date(startISO.getTime() + 24 * 60 * 60 * 1000 - 1);
         console.log(
-          `🕓 Auto-expanded single-day range: ${startISO.toISOString()} → ${endISO.toISOString()}`,
+          `🕓 Expanded single-day: ${startISO.toISOString()} → ${endISO.toISOString()}`,
         );
       }
 
       if (mode === 'range') {
         const [runRange] = await this.collection
           .aggregate([
-            {
-              $match: {
-                timestamp: { $gte: startISO, $lte: endISO },
-                Genset_Run_SS: { $gte: 1, $lte: 6 },
-              },
-            },
+            { $match: makeTimestampQuery(startISO, endISO) },
+            { $match: { Genset_Run_SS: { $gte: 1, $lte: 6 } } },
             {
               $group: {
                 _id: null,
@@ -2209,25 +2259,27 @@ export class TrendsService {
           .toArray();
 
         if (runRange?.minTime && runRange?.maxTime) {
-          query = {
-            timestamp: { $gte: runRange.minTime, $lte: runRange.maxTime },
-          };
+          query = makeTimestampQuery(
+            new Date(runRange.minTime),
+            new Date(runRange.maxTime),
+          );
         } else {
-          console.log('⚠️ No genset running data found in range');
+          // console.log('⚠️ No genset running data found in range');
           return [];
         }
       } else {
-        query = { timestamp: { $gte: startISO, $lte: endISO } };
+        query = makeTimestampQuery(startISO, endISO);
       }
     } else if (mode === 'live') {
       const now = moment().tz('Asia/Karachi');
       const sixHoursAgo = now.clone().subtract(6, 'hours').toDate();
-      query = { timestamp: { $gte: sixHoursAgo } };
+      const liveEnd = now.toDate();
+      query = makeTimestampQuery(sixHoursAgo, liveEnd);
     } else {
       throw new Error('Invalid mode');
     }
 
-    // Dependency map
+    // ⚡ Dependency map
     const dependencyMap: Record<string, string[]> = {
       Load_Percent: ['Genset_Total_kW', 'Genset_Application_kW_Rating_PC2X'],
       Voltage_Imbalance: [
@@ -2264,7 +2316,7 @@ export class TrendsService {
       Fuel_Flow_Change: ['Fuel_Rate'],
     };
 
-    // Fetch base data
+    // ⚡ Fetch base data
     let baseData: any[] = (cache.get(baseKey) as any[]) || [];
     if (force || baseData.length === 0) {
       const projectionBase: Record<string, number> = { timestamp: 1 };
@@ -2300,7 +2352,10 @@ export class TrendsService {
       const map = new Map<string, any>();
       for (const batch of results) {
         for (const doc of batch) {
-          const key = doc.timestamp.toISOString();
+          const key =
+            timestampType === 'string'
+              ? doc.timestamp
+              : doc.timestamp.toISOString();
           if (!map.has(key)) map.set(key, { timestamp: doc.timestamp });
           Object.assign(map.get(key), doc);
         }
@@ -2315,11 +2370,11 @@ export class TrendsService {
 
       cache.set(baseKey, baseData);
       console.log(
-        `🧠 Base data cached (${baseData.length} records) for ${startDate} → ${endDate}`,
+        `🧠 Cached ${baseData.length} records (${timestampType}-timestamp mode)`,
       );
     }
 
-    // Multi-point formulas
+    // ⚡ Formula calculations (multi-point & single-point)
     const calcPromises: Promise<{ key: string; val: any }>[] = [];
     const addCachedFormula = (param: string, fn: () => any) => {
       const key = `${param}_${baseKey}`;
@@ -2420,10 +2475,10 @@ export class TrendsService {
       return record;
     });
 
-    // Live mode reduce
+    // Live mode 5-min reduction
     if (mode === 'live') {
-      const fiveMinData: any[] = [];
       const seen: Record<string, boolean> = {};
+      const reduced: any[] = [];
       for (const doc of merged) {
         const rounded = moment(doc.timestamp)
           .startOf('minute')
@@ -2431,32 +2486,29 @@ export class TrendsService {
           .format('YYYY-MM-DD HH:mm');
         if (!seen[rounded]) {
           seen[rounded] = true;
-          fiveMinData.push(doc);
+          reduced.push(doc);
         }
       }
-      merged = fiveMinData;
+      merged = reduced;
     }
 
-    // ✅ Remove zero fields only for range mode
+    // Range mode: remove zero/null fields
     if (mode === 'range') {
       merged = merged
-        .map((record) => {
-          const cleaned: any = { timestamp: record.timestamp };
-          for (const [key, value] of Object.entries(record)) {
-            if (key === 'timestamp') continue;
-            if (value !== 0 && value !== null && value !== undefined)
-              cleaned[key] = value;
+        .map((r) => {
+          const cleaned: any = { timestamp: r.timestamp };
+          for (const [k, v] of Object.entries(r)) {
+            if (k === 'timestamp') continue;
+            if (v !== 0 && v !== null && v !== undefined) cleaned[k] = v;
           }
           return cleaned;
         })
-        .filter((record) => Object.keys(record).length > 1); // remove empty records
+        .filter((r) => Object.keys(r).length > 1);
     }
-
-    // Historic mode: leave zeros intact
 
     cache.set(finalKey, merged);
     console.log(
-      `✅ Response ready in ${(performance.now() - startPerf).toFixed(2)} ms`,
+      `✅ Response ready in ${(performance.now() - startPerf).toFixed(2)} ms (timestamp type: ${timestampType})`,
     );
     return merged;
   }

@@ -3372,6 +3372,79 @@ export class DashboardService {
   /** -------------------
    * Aggregation Pipeline with Karachi Timezone
    * ------------------- */
+  // private buildAggregationPipeline(
+  //   mode: string,
+  //   projection: Record<string, number>,
+  //   start?: string,
+  //   end?: string,
+  // ): any[] {
+  //   const pipeline: any[] = [];
+  //   const matchStage: any = {};
+
+  //   console.log('=== BUILDING PIPELINE ===');
+  //   console.log('Mode:', mode);
+  //   console.log('Original dates:', { start, end });
+
+  //   if ((mode === 'historic' || mode === 'range') && start && end) {
+  //     try {
+  //       const startDate = this.validateAndFormatDate(start);
+  //       const endDate = this.validateAndFormatDate(end);
+
+  //       // ✅ Karachi offset (UTC+5)
+  //       const karachiOffsetMs = 5 * 60 * 60 * 1000;
+
+  //       // ✅ Convert local → UTC
+  //       const startUTC = new Date(startDate.getTime() - karachiOffsetMs);
+  //       const endUTC = new Date(endDate.getTime() - karachiOffsetMs);
+
+  //       // ✅ Adjust hours in UTC range
+  //       // If same date, full day only
+  //       if (startDate.toDateString() === endDate.toDateString()) {
+  //         startUTC.setUTCHours(0, 0, 0, 0);
+  //         endUTC.setUTCHours(23, 59, 59, 999);
+  //       } else {
+  //         // For multi-day range, ensure end date stops at that day's 23:59:59
+  //         endUTC.setUTCHours(23, 59, 59, 999);
+  //       }
+
+  //       matchStage.timestamp = {
+  //         $gte: startUTC,
+  //         $lte: endUTC,
+  //       };
+
+  //       if (mode === 'range') {
+  //         matchStage.Genset_Run_SS = { $gte: 1, $lte: 6 };
+  //       }
+
+  //       console.log(`${mode} mode - Final UTC range:`, {
+  //         startUTC: startUTC.toISOString(),
+  //         endUTC: endUTC.toISOString(),
+  //       });
+  //     } catch (error) {
+  //       console.error('Date validation error:', error.message);
+  //       throw error;
+  //     }
+  //   } else if (mode === 'live') {
+  //     const sixHoursAgo = new Date();
+  //     sixHoursAgo.setHours(sixHoursAgo.getHours() - 6);
+  //     matchStage.timestamp = { $gte: sixHoursAgo };
+  //     console.log('Live mode - Last 6 hours');
+  //   }
+
+  //   if (Object.keys(matchStage).length > 0) {
+  //     pipeline.push({ $match: matchStage });
+  //     console.log('Final match stage:', matchStage);
+  //   }
+
+  //   pipeline.push({ $project: projection });
+  //   pipeline.push({ $sort: { timestamp: 1 } });
+
+  //   return pipeline;
+  // }
+
+  /** -------------------
+   * Aggregation Pipeline with Hybrid Timestamp Support (Date + String)
+   * ------------------- */
   private buildAggregationPipeline(
     mode: string,
     projection: Record<string, number>,
@@ -3397,19 +3470,42 @@ export class DashboardService {
         const startUTC = new Date(startDate.getTime() - karachiOffsetMs);
         const endUTC = new Date(endDate.getTime() - karachiOffsetMs);
 
-        // ✅ Adjust hours in UTC range
-        // If same date, full day only
+        // ✅ Adjust hours
         if (startDate.toDateString() === endDate.toDateString()) {
           startUTC.setUTCHours(0, 0, 0, 0);
           endUTC.setUTCHours(23, 59, 59, 999);
         } else {
-          // For multi-day range, ensure end date stops at that day's 23:59:59
           endUTC.setUTCHours(23, 59, 59, 999);
         }
 
-        matchStage.timestamp = {
-          $gte: startUTC,
-          $lte: endUTC,
+        // ✅ Hybrid filter for string or Date timestamps
+        matchStage.$expr = {
+          $and: [
+            {
+              $gte: [
+                {
+                  $cond: {
+                    if: { $eq: [{ $type: '$timestamp' }, 'string'] },
+                    then: { $dateFromString: { dateString: '$timestamp' } },
+                    else: '$timestamp',
+                  },
+                },
+                startUTC,
+              ],
+            },
+            {
+              $lte: [
+                {
+                  $cond: {
+                    if: { $eq: [{ $type: '$timestamp' }, 'string'] },
+                    then: { $dateFromString: { dateString: '$timestamp' } },
+                    else: '$timestamp',
+                  },
+                },
+                endUTC,
+              ],
+            },
+          ],
         };
 
         if (mode === 'range') {
@@ -3427,13 +3523,27 @@ export class DashboardService {
     } else if (mode === 'live') {
       const sixHoursAgo = new Date();
       sixHoursAgo.setHours(sixHoursAgo.getHours() - 6);
-      matchStage.timestamp = { $gte: sixHoursAgo };
+
+      // ✅ Handle hybrid type for "live" mode as well
+      matchStage.$expr = {
+        $gte: [
+          {
+            $cond: {
+              if: { $eq: [{ $type: '$timestamp' }, 'string'] },
+              then: { $dateFromString: { dateString: '$timestamp' } },
+              else: '$timestamp',
+            },
+          },
+          sixHoursAgo,
+        ],
+      };
+
       console.log('Live mode - Last 6 hours');
     }
 
     if (Object.keys(matchStage).length > 0) {
       pipeline.push({ $match: matchStage });
-      console.log('Final match stage:', matchStage);
+      console.log('Final match stage:', JSON.stringify(matchStage, null, 2));
     }
 
     pipeline.push({ $project: projection });
