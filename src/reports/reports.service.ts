@@ -566,4 +566,129 @@ export class ReportsService {
 
     return rows;
   }
+
+  // private processIntervals(
+  //   merged: any[],
+  //   fuelCostPerLitre: number,
+  //   date: string,
+  // ) {
+  //   const intervals: any[] = [];
+  //   let currentInterval: any[] = [];
+
+  //   // GROUP INTERVALS (GENSET RUN)
+  //   for (const record of merged) {
+  //     if (record.Genset_Run_SS >= 1 && record.Genset_Run_SS <= 6) {
+  //       currentInterval.push(record);
+  //     } else if (currentInterval.length > 0) {
+  //       intervals.push(currentInterval);
+  //       currentInterval = [];
+  //     }
+  //   }
+  //   if (currentInterval.length > 0) intervals.push(currentInterval);
+
+  //   const rows: any[] = [];
+
+  //   for (const interval of intervals) {
+  //     const start = interval[0].time;
+  //     const end = interval[interval.length - 1].time;
+
+  //     const startDateObj = new Date(start);
+  //     const endDateObj = new Date(end);
+
+  //     const durationMins =
+  //       (endDateObj.getTime() - startDateObj.getTime()) / (1000 * 60);
+  //     const runHours = +(durationMins / 60).toFixed(2);
+
+  //     // -------------------------
+  //     // 🔥 DEBUG ARRAYS
+  //     // -------------------------
+  //     const debugLoadPercentValues = interval.map((r) => r.Load_Percent ?? 0);
+  //     const debugFuelUsedValues = interval.map((r) => r.Fuel_Used ?? 0);
+  //     const debugKWValues = interval.map((r) => r.Genset_Total_kW ?? 0);
+  //     const debugTimestamps = interval.map((r) => r.time);
+  //     const debugRunSS = interval.map((r) => r.Genset_Run_SS ?? 0);
+
+  //     // -------------------------
+  //     // CALCULATIONS
+  //     // -------------------------
+  //     const fuelConsumed = +debugFuelUsedValues
+  //       .reduce((a, b) => a + b, 0)
+  //       .toFixed(2);
+
+  //     const avgKW =
+  //       debugKWValues.reduce((a, b) => a + b, 0) / (debugKWValues.length || 1);
+
+  //     const avgLoad =
+  //       debugLoadPercentValues.reduce((a, b) => a + b, 0) /
+  //       (debugLoadPercentValues.length || 1);
+
+  //     const production = +(avgKW * runHours).toFixed(2);
+  //     const cost = +(fuelConsumed * fuelCostPerLitre).toFixed(2);
+  //     const costPerUnit = production ? +(cost / production).toFixed(2) : 0;
+
+  //     // -------------------------
+  //     // 🔥 COMPLETE DEBUG LOG OUTPUT
+  //     // -------------------------
+  //     console.log('======================================');
+  //     console.log('🔍 DEBUG REPORT INTERVAL');
+  //     console.log('Date:', date);
+  //     console.log('Start Time:', start);
+  //     console.log('End Time:', end);
+  //     console.log('Total Records:', interval.length);
+
+  //     console.log('\n-- Load Percent Debug --');
+  //     console.log('Values:', debugLoadPercentValues);
+  //     console.log('Average Load %:', avgLoad);
+
+  //     console.log('\n-- Fuel Used Debug --');
+  //     console.log('Values:', debugFuelUsedValues);
+  //     console.log('Total Fuel Consumed:', fuelConsumed);
+
+  //     console.log('\n-- KW Debug --');
+  //     console.log('Values:', debugKWValues);
+  //     console.log('Average kW:', avgKW);
+
+  //     console.log('\n-- Timestamp Debug --');
+  //     console.log(debugTimestamps);
+
+  //     console.log('\n-- Run SS Debug --');
+  //     console.log(debugRunSS);
+
+  //     console.log('======================================');
+
+  //     // -------------------------
+  //     // FINAL OUTPUT ROW
+  //     // -------------------------
+  //     const formatTime = (d: Date) =>
+  //       `${d.getHours().toString().padStart(2, '0')}:${d
+  //         .getMinutes()
+  //         .toString()
+  //         .padStart(2, '0')}`;
+
+  //     rows.push({
+  //       Date: date,
+  //       Duration: `${formatTime(startDateObj)}–${formatTime(endDateObj)}`,
+  //       Run_Hours: runHours,
+  //       Fuel_Consumed: `${fuelConsumed} Ltrs`,
+  //       Production: `${production} kWh`,
+  //       Load_Percent: +avgLoad.toFixed(2),
+  //       Cost: cost,
+  //       CostPerUnit: costPerUnit,
+  //       TotalCost: cost,
+
+  //       // -------------------------
+  //       // OPTIONAL: Debug Data in API Response
+  //       // -------------------------
+  //       Debug: {
+  //         LoadPercentValues: debugLoadPercentValues,
+  //         FuelUsedValues: debugFuelUsedValues,
+  //         KWValues: debugKWValues,
+  //         Timestamps: debugTimestamps,
+  //         RunSS: debugRunSS,
+  //       },
+  //     });
+  //   }
+
+  //   return rows;
+  // }
 }

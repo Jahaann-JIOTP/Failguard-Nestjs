@@ -784,7 +784,7 @@ export class DashboardController {
   }
 
   // Load Sharing Chart
-  @Get('operator-level/load-sharing')
+  @Get('electrical-health/load-sharing')
   async getLoadSharingChart(
     @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
     @Query('start') start?: string,
@@ -899,7 +899,7 @@ export class DashboardController {
   }
 
   // Phase Balance Effectiveness Chart
-  @Get('electrical-health/phase-balance')
+  @Get('operator-level/phase-balance')
   async getPhaseBalanceEffectivenessChart(
     @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
     @Query('start') start?: string,

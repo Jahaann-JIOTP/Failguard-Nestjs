@@ -44,8 +44,29 @@ export class FormulasService {
       : 0;
   }
 
-  calculateRunningHours(doc: any): number {
-    return +(doc.Engine_Running_Time_calculated || 0).toFixed(2);
+  public calculateRunningHours(data: any[]): number {
+    if (data.length < 2) return 0;
+
+    let runningMinutes = 0;
+
+    for (let i = 1; i < data.length; i++) {
+      const prev = data[i - 1];
+      const curr = data[i];
+
+      // Check if generator was running in the previous record
+      const wasRunning = prev.Genset_Run_SS && prev.Genset_Run_SS > 0;
+
+      if (wasRunning) {
+        const prevTime = new Date(prev.timestamp).getTime();
+        const currTime = new Date(curr.timestamp).getTime();
+
+        if (!isNaN(prevTime) && !isNaN(currTime)) {
+          runningMinutes += (currTime - prevTime) / 60000; // convert ms → minutes
+        }
+      }
+    }
+
+    return +(runningMinutes / 60).toFixed(2); // convert minutes → hours
   }
 
   /** -------------------
