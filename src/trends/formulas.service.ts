@@ -191,10 +191,26 @@ export class FormulasService {
    * Dashboard 4 Formulas
    * ------------------- */
 
+  // calculateLubricationRiskIndex(doc: any): number {
+  //   const oilPressure = doc.Oil_Pressure ?? 0;
+  //   const oilTemp = doc.Oil_Temperature ?? 0;
+  //   return oilTemp !== 0 ? +(oilPressure / oilTemp).toFixed(2) : 0;
+  // }
+
   calculateLubricationRiskIndex(doc: any): number {
     const oilPressure = doc.Oil_Pressure ?? 0;
     const oilTemp = doc.Oil_Temperature ?? 0;
-    return oilTemp !== 0 ? +(oilPressure / oilTemp).toFixed(2) : 0;
+
+    // Constants (from your notebook)
+    const Pmin = 30; // Minimum safe oil pressure
+    const Tmax = 257; // Maximum safe oil temperature
+    const Tmin = 200; // Minimum safe oil temperature
+
+    const pressureFactor = Math.min(1, oilPressure / Pmin);
+
+    const temperatureFactor = Math.max(0, (Tmax - oilTemp) / (Tmax - Tmin));
+
+    return +(pressureFactor * temperatureFactor).toFixed(2);
   }
 
   /** -------------------
@@ -390,6 +406,62 @@ export class FormulasService {
 
     return ESI_percent;
   }
+
+  // calculateElectricalStress(doc: any): number {
+  //   // Helper to ensure a value is between 0 and 1
+  //   const clamp = (value: number) => Math.max(0, Math.min(1, value));
+
+  //   // Voltage Unbalance (VU)
+  //   const VL1 = doc.Genset_L1L2_Voltage ?? 0;
+  //   const VL2 = doc.Genset_L2L3_Voltage ?? 0;
+  //   const VL3 = doc.Genset_L3L1_Voltage ?? 0;
+  //   const Vavg = (VL1 + VL2 + VL3) / 3 || 1;
+  //   const VmaxDev =
+  //     (Math.max(
+  //       Math.abs(VL1 - Vavg),
+  //       Math.abs(VL2 - Vavg),
+  //       Math.abs(VL3 - Vavg),
+  //     ) /
+  //       Vavg) *
+  //     100;
+  //   const VU = clamp(VmaxDev / 2); // 2% typical limit
+
+  //   // Current Unbalance (CU)
+  //   const IA = doc.Genset_L1_Current ?? 0;
+  //   const IB = doc.Genset_L2_Current ?? 0;
+  //   const IC = doc.Genset_L3_Current ?? 0;
+  //   const Iavg = (IA + IB + IC) / 3 || 1;
+  //   const ImaxDev =
+  //     (Math.max(Math.abs(IA - Iavg), Math.abs(IB - Iavg), Math.abs(IC - Iavg)) /
+  //       Iavg) *
+  //     100;
+  //   const CU = clamp(ImaxDev / 10); // 10% typical limit
+
+  //   // Overload Index (OL)
+  //   const Inom = doc.Genset_Application_Nominal_Current_PC2X ?? 1;
+  //   const OL = clamp(Math.max(IA, IB, IC) / Inom - 1); // capped 0–1
+
+  //   // Power Factor Index (PFI)
+  //   const pf = doc.Genset_Total_Power_Factor_calculated ?? 1;
+  //   const pf_nom = 0.8; // datasheet value
+  //   const PFI = clamp((pf_nom - pf) / 0.1);
+
+  //   // Frequency Index (FI)
+  //   const freq = doc.Genset_Frequency ?? 50;
+  //   const deltaF = Math.abs(freq - 50);
+  //   const FI = clamp((deltaF * 100) / 50);
+
+  //   // Torque Index (TI)
+  //   const torquePct = doc.Percent_Engine_Torque_or_Duty_Cycle ?? 0; // 0–100
+  //   const TI = clamp(torquePct / 100);
+
+  //   // Weighted Electrical Stress Index
+  //   const ESI =
+  //     0.2 * VU + 0.2 * CU + 0.25 * OL + 0.15 * PFI + 0.1 * FI + 0.1 * TI;
+  //   const ESI_percent = +(ESI * 100).toFixed(2);
+
+  //   return ESI_percent;
+  // }
 
   calculateThermalEfficiency(doc: any): number {
     const fuelRate = doc.Fuel_Rate ?? 0; // gallons per hour
