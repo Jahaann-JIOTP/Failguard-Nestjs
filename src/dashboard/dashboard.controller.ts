@@ -1090,7 +1090,7 @@ export class DashboardController {
       start,
       end,
     );
-    return charts.voltageQualitySymmetry || [];
+    return charts.voltageQuality || [];
   }
 
   // Thermal Stress Alert Chart
@@ -1623,5 +1623,14 @@ export class DashboardController {
       timestamp: new Date().toISOString(),
       features: ['caching', 'batch-processing', 'aggregation-pipelines'],
     };
+  }
+
+  @Get('metrics')
+  async getConsumptionMetrics(
+    @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
+    @Query('start') start?: string,
+    @Query('end') end?: string,
+  ) {
+    return this.dashboardService.getConsumptionMetrics(mode, start, end);
   }
 }

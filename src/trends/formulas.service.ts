@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-redundant-type-constituents */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
@@ -44,29 +46,89 @@ export class FormulasService {
       : 0;
   }
 
-  public calculateRunningHours(data: any[]): number {
-    if (data.length < 2) return 0;
+  // public calculateRunningHours(data: any[]): number {
+  //   if (data.length < 2) return 0;
 
-    let runningMinutes = 0;
+  //   let runningMinutes = 0;
 
-    for (let i = 1; i < data.length; i++) {
-      const prev = data[i - 1];
-      const curr = data[i];
+  //   for (let i = 1; i < data.length; i++) {
+  //     const prev = data[i - 1];
+  //     const curr = data[i];
 
-      // Check if generator was running in the previous record
-      const wasRunning = prev.Genset_Run_SS && prev.Genset_Run_SS > 0;
+  //     // Check if generator was running in the previous record
+  //     const wasRunning = prev.Genset_Run_SS && prev.Genset_Run_SS > 0;
 
-      if (wasRunning) {
-        const prevTime = new Date(prev.timestamp).getTime();
-        const currTime = new Date(curr.timestamp).getTime();
+  //     if (wasRunning) {
+  //       const prevTime = new Date(prev.timestamp).getTime();
+  //       const currTime = new Date(curr.timestamp).getTime();
 
-        if (!isNaN(prevTime) && !isNaN(currTime)) {
-          runningMinutes += (currTime - prevTime) / 60000; // convert ms → minutes
-        }
+  //       if (!isNaN(prevTime) && !isNaN(currTime)) {
+  //         runningMinutes += (currTime - prevTime) / 60000; // convert ms → minutes
+  //       }
+  //     }
+  //   }
+
+  //   return +(runningMinutes / 60).toFixed(2); // convert minutes → hours
+  // }
+
+  /** -------------------
+   * CORRECT: Running Hours Calculation using Engine_Running_Time_calculated
+   * ------------------- */
+  private calculateRunningHours(data: any[]): number {
+    if (data.length === 0) return 0;
+
+    // Method 1: Use the MAXIMUM running hours value from Engine_Running_Time_calculated
+    const runningHoursValues = data
+      .map((d) => d.Engine_Running_Time_calculated)
+      .filter(
+        (val) => val !== undefined && val !== null && !isNaN(val) && val > 0,
+      );
+
+    if (runningHoursValues.length > 0) {
+      const maxRunningHours = Math.max(...runningHoursValues);
+      console.log(
+        `Running hours - Using Engine_Running_Time_calculated: ${maxRunningHours} hours (from ${runningHoursValues.length} valid records)`,
+      );
+      return +maxRunningHours.toFixed(2);
+    }
+
+    // Method 2: Fallback - Calculate total time span when genset was ON
+    let totalRunningTimeMs = 0;
+    let lastRunningTime: number | null = null;
+
+    // Sort data by timestamp to be safe
+    const sortedData = [...data].sort(
+      (a, b) =>
+        new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
+    );
+
+    for (const record of sortedData) {
+      const isRunning = record.Genset_Run_SS >= 1 && record.Genset_Run_SS <= 6;
+      const currentTime = new Date(record.timestamp).getTime();
+
+      if (isRunning && lastRunningTime === null) {
+        // Genset started running
+        lastRunningTime = currentTime;
+      } else if (!isRunning && lastRunningTime !== null) {
+        // Genset stopped running, add to total
+        totalRunningTimeMs += currentTime - lastRunningTime;
+        lastRunningTime = null;
       }
     }
 
-    return +(runningMinutes / 60).toFixed(2); // convert minutes → hours
+    // If genset was still running at the end
+    if (lastRunningTime !== null) {
+      const endTime = new Date(
+        sortedData[sortedData.length - 1].timestamp,
+      ).getTime();
+      totalRunningTimeMs += endTime - lastRunningTime;
+    }
+
+    const runningHours = totalRunningTimeMs / (1000 * 60 * 60); // ms to hours
+    console.log(
+      `Running hours - Calculated from timestamps: ${runningHours} hours`,
+    );
+    return +runningHours.toFixed(2);
   }
 
   /** -------------------
@@ -127,10 +189,76 @@ export class FormulasService {
     ).toFixed(2);
   }
 
+  // calculateLoadPercent1(doc: any): number {
+  //   if (!doc.Genset_Total_KVA || !doc.Genset_Application_kVA_Rating_PC2X) {
+  //     return 0;
+  //   }
+  //   return +(
+  //     doc.Genset_Total_KVA / doc.Genset_Application_kVA_Rating_PC2X
+  //   ).toFixed(2);
+  // }
+
+  // calculateLoadStress(doc: any): number {
+  //   const loadPercent = this.calculateLoadPercent1(doc);
+  //   const pf = doc.Genset_Total_Power_Factor_calculated || 1;
+
+  //   return +(loadPercent * 1) / pf;
+  // }
+
+  // ✅ CORRECTED: Proper field checking with fallbacks
   calculateLoadStress(doc: any): number {
-    const loadPercent = this.calculateLoadPercent(doc);
+    console.log('=== Load Stress Detailed Debug ===');
+
+    // Check multiple field variations with proper fallbacks
+    const kva = doc.Genset_Total_KVA || doc.Genset_Total_kVA || 0;
+    const rating = doc.Genset_Application_kVA_Rating_PC2X || 0;
     const pf = doc.Genset_Total_Power_Factor_calculated || 1;
-    return +(loadPercent * 1) / pf;
+
+    console.log('Raw values - KVA:', kva, 'Rating:', rating, 'PF:', pf);
+
+    // If KVA or rating is zero/missing, use fallback calculation
+    if (!kva || !rating || kva === 0 || rating === 0) {
+      console.log('Using fallback calculation with KW values');
+
+      // Fallback to KW-based calculation
+      const totalKW = doc.Genset_Total_kW || 0;
+      const ratingKW = doc.Genset_Application_kW_Rating_PC2X || 1;
+
+      const loadPercent = ratingKW > 0 ? totalKW / ratingKW : 0;
+      const result = +(loadPercent / pf).toFixed(4);
+
+      console.log('Fallback result:', {
+        totalKW,
+        ratingKW,
+        loadPercent,
+        result,
+      });
+      return result;
+    }
+
+    // Normal KVA-based calculation
+    const loadPercent = kva / rating;
+    const result = +(loadPercent / pf).toFixed(4);
+
+    console.log('KVA-based result:', { kva, rating, loadPercent, result });
+    return result;
+  }
+
+  // ✅ SIMPLIFIED: Better load percent calculation
+  calculateLoadPercent1(doc: any): number {
+    // Try KVA first
+    const kva = doc.Genset_Total_KVA || doc.Genset_Total_kVA || 0;
+    const kvaRating = doc.Genset_Application_kVA_Rating_PC2X || 0;
+
+    if (kva && kvaRating && kvaRating > 0) {
+      return +(kva / kvaRating).toFixed(4);
+    }
+
+    // Fallback to KW
+    const kw = doc.Genset_Total_kW || 0;
+    const kwRating = doc.Genset_Application_kW_Rating_PC2X || 1;
+
+    return +(kw / kwRating).toFixed(4);
   }
 
   /** -------------------
@@ -221,6 +349,18 @@ export class FormulasService {
     const fuelRate = doc.Fuel_Rate ?? 0;
     const boostPressure = doc.Boost_Pressure ?? 0;
     return fuelRate !== 0 ? +(boostPressure / fuelRate).toFixed(2) : 0;
+  }
+  calculateFuelEfficiencyIndex(doc: any): number {
+    const gensetTotalKW = doc.Genset_Total_kW ?? 0;
+    const fuelRate = doc.Fuel_Rate ?? 0; // assumed in gallons/hour
+
+    // Convert fuel rate from gallons to liters
+    const fuelRateLiters = fuelRate * 3.7854;
+
+    // Calculate FEI in kWh/L
+    return fuelRateLiters !== 0
+      ? +(gensetTotalKW / fuelRateLiters).toFixed(2)
+      : 0;
   }
 
   calculateSpecificFuelConsumption(doc: any): number {
@@ -475,5 +615,20 @@ export class FormulasService {
       fuelEnergy_kW > 0 ? (gensetPower / fuelEnergy_kW) * 100 : 0;
 
     return +thermalEff.toFixed(2);
+  }
+
+  calculateEnergy(data: any[] | any): any[] {
+    const dataArray = Array.isArray(data) ? data : [data]; // wrap single object in array
+    let cumulative = 0;
+
+    return dataArray.map((d) => {
+      const energy = +(d.Genset_Total_kW * d.Interval_hours).toFixed(6);
+      cumulative += energy;
+      return {
+        ...d,
+        Energy_kWh: energy,
+        Cumulative_Energy_kWh: +cumulative.toFixed(6),
+      };
+    });
   }
 }
