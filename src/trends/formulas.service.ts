@@ -617,17 +617,37 @@ export class FormulasService {
     return +thermalEff.toFixed(2);
   }
 
+  // calculateEnergy(data: any[] | any): any[] {
+  //   const dataArray = Array.isArray(data) ? data : [data]; // wrap single object in array
+  //   let cumulative = 0;
+
+  //   return dataArray.map((d) => {
+  //     const energy = +(d.Genset_Total_kW * 308).toFixed(6);
+  //     cumulative += energy;
+  //     return {
+  //       ...d,
+  //       Energy_kWh: energy,
+  //       Cumulative_Energy_kWh: +cumulative.toFixed(6),
+  //     };
+  //   });
+  // }
+
   calculateEnergy(data: any[] | any): any[] {
-    const dataArray = Array.isArray(data) ? data : [data]; // wrap single object in array
+    const dataArray = Array.isArray(data) ? data : [data]; // ensure array
     let cumulative = 0;
 
     return dataArray.map((d) => {
-      const energy = +(d.Genset_Total_kW * d.Interval_hours).toFixed(6);
+      // Energy per record = Genset_Total_kW × 308
+      const energy = +(d.Genset_Total_kW * 0.000833).toFixed(6);
+
+      // Cumulative energy over the interval
       cumulative += energy;
+
       return {
         ...d,
         Energy_kWh: energy,
         Cumulative_Energy_kWh: +cumulative.toFixed(6),
+        Production_kWh: +cumulative.toFixed(2), // interval production
       };
     });
   }
