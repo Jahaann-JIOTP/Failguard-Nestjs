@@ -1375,7 +1375,7 @@ export class DashboardController {
   }
 
   // Metrics Only
-  @Get('performance-general')
+  @Get('performance-general1')
   async getDashboard6Metrics(
     @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
     @Query('start') start?: string,
@@ -1625,7 +1625,7 @@ export class DashboardController {
     };
   }
 
-  @Get('metrics')
+  @Get('performance-general')
   async getConsumptionMetrics(
     @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
     @Query('start') start?: string,

@@ -2187,7 +2187,7 @@ export class TrendsService {
     @Inject('MONGO_CLIENT') private readonly db: Db,
     private readonly formulasService: FormulasService,
   ) {
-    this.collection = this.db.collection('Navy_Gen_On');
+    this.collection = this.db.collection('navy_12S');
     this.collection.createIndex({ timestamp: 1 });
   }
 

@@ -86,9 +86,9 @@ export class FormulasService {
 
     if (runningHoursValues.length > 0) {
       const maxRunningHours = Math.max(...runningHoursValues);
-      console.log(
-        `Running hours - Using Engine_Running_Time_calculated: ${maxRunningHours} hours (from ${runningHoursValues.length} valid records)`,
-      );
+      // console.log(
+      //   `Running hours - Using Engine_Running_Time_calculated: ${maxRunningHours} hours (from ${runningHoursValues.length} valid records)`,
+      // );
       return +maxRunningHours.toFixed(2);
     }
 
@@ -125,9 +125,9 @@ export class FormulasService {
     }
 
     const runningHours = totalRunningTimeMs / (1000 * 60 * 60); // ms to hours
-    console.log(
-      `Running hours - Calculated from timestamps: ${runningHours} hours`,
-    );
+    // console.log(
+    //   `Running hours - Calculated from timestamps: ${runningHours} hours`,
+    // );
     return +runningHours.toFixed(2);
   }
 
@@ -207,18 +207,18 @@ export class FormulasService {
 
   // ✅ CORRECTED: Proper field checking with fallbacks
   calculateLoadStress(doc: any): number {
-    console.log('=== Load Stress Detailed Debug ===');
+    // console.log('=== Load Stress Detailed Debug ===');
 
     // Check multiple field variations with proper fallbacks
     const kva = doc.Genset_Total_KVA || doc.Genset_Total_kVA || 0;
     const rating = doc.Genset_Application_kVA_Rating_PC2X || 0;
     const pf = doc.Genset_Total_Power_Factor_calculated || 1;
 
-    console.log('Raw values - KVA:', kva, 'Rating:', rating, 'PF:', pf);
+    // console.log('Raw values - KVA:', kva, 'Rating:', rating, 'PF:', pf);
 
     // If KVA or rating is zero/missing, use fallback calculation
     if (!kva || !rating || kva === 0 || rating === 0) {
-      console.log('Using fallback calculation with KW values');
+      // console.log('Using fallback calculation with KW values');
 
       // Fallback to KW-based calculation
       const totalKW = doc.Genset_Total_kW || 0;
@@ -227,12 +227,12 @@ export class FormulasService {
       const loadPercent = ratingKW > 0 ? totalKW / ratingKW : 0;
       const result = +(loadPercent / pf).toFixed(4);
 
-      console.log('Fallback result:', {
-        totalKW,
-        ratingKW,
-        loadPercent,
-        result,
-      });
+      // console.log('Fallback result:', {
+      //   totalKW,
+      //   ratingKW,
+      //   loadPercent,
+      //   result,
+      // });
       return result;
     }
 
@@ -240,7 +240,7 @@ export class FormulasService {
     const loadPercent = kva / rating;
     const result = +(loadPercent / pf).toFixed(4);
 
-    console.log('KVA-based result:', { kva, rating, loadPercent, result });
+    // console.log('KVA-based result:', { kva, rating, loadPercent, result });
     return result;
   }
 
