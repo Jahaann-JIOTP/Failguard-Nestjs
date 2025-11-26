@@ -1380,7 +1380,7 @@ export class DashboardService {
     @Inject('MONGO_CLIENT') private readonly db: Db,
     private readonly formulas: FormulasService,
   ) {
-    this.collection = this.db.collection('navy_12S');
+    this.collection = this.db.collection('navy_12s');
   }
 
   /** -------------------
@@ -3325,17 +3325,19 @@ export class DashboardService {
 
     charts.voltageQualitySymmetry = data.map((d) => ({
       time: d.timestamp,
-      // Coolant_Temperature: d.Coolant_Temperature ?? null,
+      Coolant_Temperature: d.Coolant_Temperature ?? null,
       Genset_L1L2_Voltage: d.Genset_L1L2_Voltage ?? null,
       Genset_L2L3_Voltage: d.Genset_L2L3_Voltage ?? null,
       Genset_L3L1_Voltage: d.Genset_L3L1_Voltage ?? null,
       voltageImbalance: this.formulas.calculateVoltageImbalance(d) || 0,
       // load_Percent: this.formulas.calculateLoadPercent(d) || 0,
       Genset_LL_Avg_Voltage: this.formulas.calculateAvgLLVoltage(d) || 0,
+      Coolant_TemperatureC: this.formulas.convertCoolantToCelsius(d) ?? null,
     }));
     charts.voltageQuality = data.map((d) => ({
       time: d.timestamp,
       Coolant_Temperature: d.Coolant_Temperature ?? null,
+      Coolant_TemperatureC: this.formulas.convertCoolantToCelsius(d) ?? null,
       // Genset_L1L2_Voltage: d.Genset_L1L2_Voltage ?? null,
       // Genset_L2L3_Voltage: d.Genset_L2L3_Voltage ?? null,
       // Genset_L3L1_Voltage: d.Genset_L3L1_Voltage ?? null,
@@ -3423,6 +3425,7 @@ export class DashboardService {
       time: d.timestamp,
       Oil_Pressure: d.Oil_Pressure ?? null,
       Oil_Temperature: d.Oil_Temperature ?? null,
+      Oil_TemperatureC: this.formulas.convertOilTempToCelsius(d) ?? null,
       Lubrication_Risk_Index:
         this.formulas.calculateLubricationRiskIndex(d) || 0,
     }));

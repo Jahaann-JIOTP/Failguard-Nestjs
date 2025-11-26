@@ -284,6 +284,23 @@ export class FormulasService {
     return +stress.toFixed(2);
   }
 
+  // Convert Fahrenheit to Celsius
+  public fahrenheitToCelsius(fahrenheit: number): number {
+    return +(((fahrenheit - 32) * 5) / 9).toFixed(2);
+  }
+
+  // Convert Coolant Temperature to Celsius
+  convertCoolantToCelsius(doc: any): number {
+    const coolantF = doc.Coolant_Temperature ?? 0; // Default 0 if missing
+    return this.fahrenheitToCelsius(coolantF);
+  }
+
+  // Convert Oil Temperature to Celsius
+  convertOilTempToCelsius(doc: any): number {
+    const oilF = doc.Oil_Temperature ?? 0; // Default 0 if missing
+    return this.fahrenheitToCelsius(oilF);
+  }
+
   calculateThermalStressC(doc: any): number {
     const coolant = doc.Coolant_Temperature ?? 0;
     const min = 90;
