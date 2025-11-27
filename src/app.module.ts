@@ -18,10 +18,12 @@ import { ReportsModule } from './reports/reports.module';
 import { AlarmsModule } from './alarms/alarms.module';
 import { GeneratorModule } from './generator/generator.module';
 import { NavyDataModule } from './navy-data/navy-data.module';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    ScheduleModule.forRoot(),
     MongooseModule.forRoot(process.env.MONGODB_URI || ''), // Default connection, no connectionName
     UsersModule,
     AuthModule,

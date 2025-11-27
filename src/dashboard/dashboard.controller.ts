@@ -816,7 +816,7 @@ export class DashboardController {
   }
 
   // Engine Thermal Chart
-  @Get('operator-level/engine-thermal')
+  @Get('operator-level/engine')
   async getEngineThermalChart(
     @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
     @Query('start') start?: string,
@@ -1062,7 +1062,7 @@ export class DashboardController {
   }
 
   // Engine Thermal Chart (from Dashboard 1)
-  @Get('thermal-health/thermal-performance')
+  @Get('thermal-health/thermal')
   async getThermalPerformanceChart(
     @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
     @Query('start') start?: string,
@@ -1078,6 +1078,34 @@ export class DashboardController {
   }
 
   // Voltage Imbalance Chart (from Dashboard 2)
+  @Get('operator-level/engine-thermal')
+  async getcoc(
+    @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
+    @Query('start') start?: string,
+    @Query('end') end?: string,
+  ) {
+    const { charts } = await this.dashboardService.getDashboardData(
+      'dashboard2',
+      mode,
+      start,
+      end,
+    );
+    return charts.coc || [];
+  }
+  @Get('thermal-health/thermal-performance')
+  async getcoc1(
+    @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
+    @Query('start') start?: string,
+    @Query('end') end?: string,
+  ) {
+    const { charts } = await this.dashboardService.getDashboardData(
+      'dashboard2',
+      mode,
+      start,
+      end,
+    );
+    return charts.coc || [];
+  }
   @Get('thermal-health/cooling-efficiency')
   async getVoltageImbalanceChart(
     @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',

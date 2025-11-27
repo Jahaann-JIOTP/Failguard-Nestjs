@@ -1137,7 +1137,7 @@ export class ReportsService {
 
     // Group intervals based on Genset_Run_SS
     for (const record of merged) {
-      if (record.Genset_Run_SS >= 1 && record.Genset_Run_SS <= 6) {
+      if (record.Genset_Run_SS > 0) {
         currentInterval.push(record);
       } else if (currentInterval.length > 0) {
         intervals.push(currentInterval);

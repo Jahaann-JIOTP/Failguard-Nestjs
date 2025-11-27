@@ -294,6 +294,10 @@ export class FormulasService {
     const coolantF = doc.Coolant_Temperature ?? 0; // Default 0 if missing
     return this.fahrenheitToCelsius(coolantF);
   }
+  convertIntakeToCelsius(doc: any): number {
+    const intakeF = doc.Intake_Manifold_Temperature_calculated ?? 0; // Default 0 if missing
+    return this.fahrenheitToCelsius(intakeF);
+  }
 
   // Convert Oil Temperature to Celsius
   convertOilTempToCelsius(doc: any): number {

@@ -1578,433 +1578,6 @@ export class DashboardService {
   }
 
   /** -------------------
-   * UPDATED: Core Data Fetching Logic
-   * ------------------- */
-  // private async fetchDashboardData(
-  //   mode: 'live' | 'historic' | 'range',
-  //   config: DashboardConfig,
-  //   start?: string,
-  //   end?: string,
-  // ) {
-  //   const pipeline = this.buildAggregationPipeline(
-  //     mode,
-  //     config.projection,
-  //     start,
-  //     end,
-  //   );
-
-  //   console.log('Executing pipeline for mode:', mode);
-  //   console.log('Date range:', { start, end });
-
-  //   const data = await this.collection.aggregate(pipeline).toArray();
-
-  //   console.log(
-  //     `Fetched ${data.length} records from database for mode: ${mode}`,
-  //   );
-
-  //   // 🔥 NEW: Enhanced data validation logging
-  //   this.logDataValidation(data, mode, config.projection);
-
-  //   if (!data.length) {
-  //     console.log('No data found for query:', { mode, start, end });
-  //     return {
-  //       metrics: mode === 'range' ? { onDurationMinutes: 0 } : {},
-  //       charts: {},
-  //     };
-  //   }
-
-  //   // ✅ UPDATED: Conditional zero-fill based on mode
-  //   let formattedData;
-  //   if (mode === 'historic') {
-  //     // 🔥 HISTORIC MODE: Fill all missing fields with zero
-  //     formattedData = data.map((doc) => ({
-  //       ...this.fillMissingFieldsWithZero(doc, config.projection),
-  //       timestamp: this.formatDateTimestamp(doc.timestamp),
-  //     }));
-  //   } else {
-  //     // 🔥 RANGE & LIVE MODE: Keep original data (no zero-fill)
-  //     formattedData = data.map((doc) => ({
-  //       ...doc,
-  //       timestamp: this.formatDateTimestamp(doc.timestamp),
-  //     }));
-  //   }
-
-  //   const latest = formattedData[formattedData.length - 1];
-
-  //   // ✅ FIX: Pass empty array for live mode to ensure latest document values
-  //   const metricsData = mode === 'live' ? [] : formattedData;
-
-  //   // ✅ UPDATED: Pass correct data to metrics mapper
-  //   let metrics = config.metricsMapper(latest, metricsData, mode);
-
-  //   // ✅ UPDATED: Calculate running hours using Engine_Running_Time_calculated
-  //   if (mode === 'live') {
-  //     // For live mode, use the latest running time value
-  //     metrics.runningHours = latest.Engine_Running_Time_calculated || 0;
-  //     console.log(
-  //       `Live mode - Running hours from latest: ${metrics.runningHours}`,
-  //     );
-  //   } else {
-  //     // For historic/range mode, calculate running hours from data using MAX value
-  //     metrics.runningHours = this.calculateRunningHours(formattedData);
-  //   }
-
-  //   if (mode === 'range') {
-  //     metrics = {
-  //       ...metrics,
-  //       onDurationMinutes: this.calculateOnDurationDate(formattedData),
-  //     };
-  //   }
-
-  //   // ✅ UPDATED: Remove zero values but keep important metrics
-  //   metrics = this.removeZeroValuesButKeepImportant(metrics);
-
-  //   return {
-  //     metrics,
-  //     charts: config.chartsMapper(formattedData),
-  //   };
-  // }
-
-  // private async fetchDashboardData(
-  //   mode: 'live' | 'historic' | 'range',
-  //   config: DashboardConfig,
-  //   start?: string,
-  //   end?: string,
-  // ) {
-  //   const pipeline = this.buildAggregationPipeline(
-  //     mode,
-  //     config.projection,
-  //     start,
-  //     end,
-  //   );
-
-  //   console.log('Executing pipeline for mode:', mode);
-  //   console.log('Date range:', { start, end });
-
-  //   const data = await this.collection.aggregate(pipeline).toArray();
-
-  //   console.log(
-  //     `Fetched ${data.length} records from database for mode: ${mode}`,
-  //   );
-
-  //   this.logDataValidation(data, mode, config.projection);
-
-  //   if (!data.length) {
-  //     console.log('No data found for query:', { mode, start, end });
-  //     return {
-  //       metrics: mode === 'range' ? { onDurationMinutes: 0 } : {},
-  //       charts: {},
-  //     };
-  //   }
-
-  //   let formattedData;
-  //   if (mode === 'historic') {
-  //     formattedData = data.map((doc) => ({
-  //       ...this.fillMissingFieldsWithZero(doc, config.projection),
-  //       timestamp: this.formatDateTimestamp(doc.timestamp),
-  //     }));
-  //   } else {
-  //     formattedData = data.map((doc) => ({
-  //       ...doc,
-  //       timestamp: this.formatDateTimestamp(doc.timestamp),
-  //     }));
-  //   }
-
-  //   const latest = formattedData[formattedData.length - 1];
-  //   const metricsData = mode === 'live' ? [] : formattedData;
-  //   let metrics = config.metricsMapper(latest, metricsData, mode);
-
-  //   // ✅ EXISTING: Running hours calculation (jaise pehle tha)
-  //   if (mode === 'live') {
-  //     metrics.runningHours = latest.Engine_Running_Time_calculated || 0;
-  //     console.log(
-  //       `Live mode - Running hours from latest: ${metrics.runningHours}`,
-  //     );
-  //   } else {
-  //     metrics.runningHours = this.calculateRunningHours(formattedData);
-  //   }
-
-  //   // ✅ NEW: Running hours with hours & minutes calculation
-  //   let runningHoursWithMinutes;
-  //   if (mode === 'live') {
-  //     const totalHours = latest.Engine_Running_Time_calculated || 0;
-  //     runningHoursWithMinutes = this.convertToHoursMinutes(totalHours);
-  //     console.log(
-  //       `Live mode - Running hours with minutes: ${totalHours} = ${runningHoursWithMinutes.hours}h ${runningHoursWithMinutes.minutes}m`,
-  //     );
-  //   } else {
-  //     runningHoursWithMinutes =
-  //       this.calculateRunningHoursWithMinutes(formattedData);
-  //   }
-
-  //   // Add new running hours fields to metrics
-  //   metrics = {
-  //     ...metrics,
-  //     runningHoursH: runningHoursWithMinutes.hours,
-  //     runningHoursM: runningHoursWithMinutes.minutes,
-  //     totalHours: `${runningHoursWithMinutes.hours}h ${runningHoursWithMinutes.minutes}m`,
-  //   };
-
-  //   if (mode === 'range') {
-  //     metrics = {
-  //       ...metrics,
-  //       onDurationMinutes: this.calculateOnDurationDate(formattedData),
-  //     };
-  //   }
-
-  //   // ✅ UPDATED: Remove zero values but keep important metrics
-  //   metrics = this.removeZeroValuesButKeepImportant(metrics);
-
-  //   return {
-  //     metrics,
-  //     charts: config.chartsMapper(formattedData),
-  //   };
-  // }
-
-  // private async fetchDashboardData(
-  //   mode: 'live' | 'historic' | 'range',
-  //   config: DashboardConfig,
-  //   start?: string,
-  //   end?: string,
-  // ) {
-  //   const pipeline = this.buildAggregationPipeline(
-  //     mode,
-  //     config.projection,
-  //     start,
-  //     end,
-  //   );
-
-  //   console.log('Executing pipeline for mode:', mode);
-  //   console.log('Date range:', { start, end });
-
-  //   const data = await this.collection.aggregate(pipeline).toArray();
-
-  //   console.log(
-  //     `Fetched ${data.length} records from database for mode: ${mode}`,
-  //   );
-
-  //   this.logDataValidation(data, mode, config.projection);
-
-  //   if (!data.length) {
-  //     console.log('No data found for query:', { mode, start, end });
-  //     return {
-  //       metrics: mode === 'range' ? { onDurationMinutes: 0 } : {},
-  //       charts: {},
-  //     };
-  //   }
-
-  //   let formattedData;
-  //   if (mode === 'historic') {
-  //     formattedData = data.map((doc) => ({
-  //       ...this.fillMissingFieldsWithZero(doc, config.projection),
-  //       timestamp: this.formatDateTimestamp(doc.timestamp),
-  //     }));
-  //   } else {
-  //     formattedData = data.map((doc) => ({
-  //       ...doc,
-  //       timestamp: this.formatDateTimestamp(doc.timestamp),
-  //     }));
-  //   }
-
-  //   const latest = formattedData[formattedData.length - 1];
-  //   const metricsData = mode === 'live' ? [] : formattedData;
-  //   let metrics = config.metricsMapper(latest, metricsData, mode);
-
-  //   // ✅ EXISTING: Running hours calculation (jaise pehle tha)
-  //   if (mode === 'live') {
-  //     metrics.runningHours = latest.Engine_Running_Time_calculated || 0;
-  //     console.log(
-  //       `Live mode - Running hours from latest: ${metrics.runningHours}`,
-  //     );
-  //   } else {
-  //     metrics.runningHours = this.calculateRunningHours(formattedData);
-  //   }
-
-  //   // ✅ NEW: Running hours with hours & minutes calculation
-  //   let runningHoursWithMinutes;
-  //   if (mode === 'live') {
-  //     const totalHours = latest.Engine_Running_Time_calculated || 0;
-  //     runningHoursWithMinutes = this.convertToHoursMinutes(totalHours);
-  //     console.log(
-  //       `Live mode - Running hours with minutes: ${totalHours} = ${runningHoursWithMinutes.hours}h ${runningHoursWithMinutes.minutes}m`,
-  //     );
-  //   } else {
-  //     runningHoursWithMinutes =
-  //       this.calculateRunningHoursWithMinutes(formattedData);
-  //   }
-
-  //   // ✅ NEW: Total Fuel Consumed calculation (MAX - MIN)
-  //   let totalFuelConsumed;
-  //   if (mode === 'live') {
-  //     totalFuelConsumed = latest.Total_Fuel_Consumption_calculated || 0;
-  //     console.log(
-  //       `Live mode - Total Fuel Consumed from latest: ${totalFuelConsumed}`,
-  //     );
-  //   } else {
-  //     totalFuelConsumed = this.calculateTotalFuelConsumed(formattedData);
-  //   }
-
-  //   // Add new fields to metrics
-  //   metrics = {
-  //     ...metrics,
-  //     runningHoursH: runningHoursWithMinutes.hours,
-  //     runningHoursM: runningHoursWithMinutes.minutes,
-  //     totalHours: runningHoursWithMinutes.totalHours,
-  //     fuelConsumed: totalFuelConsumed,
-  //   };
-
-  //   if (mode === 'range') {
-  //     metrics = {
-  //       ...metrics,
-  //       onDurationMinutes: this.calculateOnDurationDate(formattedData),
-  //     };
-  //   }
-
-  //   // ✅ UPDATED: Remove zero values but keep important metrics
-  //   metrics = this.removeZeroValuesButKeepImportant(metrics);
-
-  //   return {
-  //     metrics,
-  //     charts: config.chartsMapper(formattedData),
-  //   };
-  // }
-
-  /** -------------------
-   * UPDATED: Core Data Fetching Logic with Fuel Conversion
-   * ------------------- */
-  /** -------------------
-   * UPDATED: Core Data Fetching Logic with Fuel Conversion using Total_Fuel_Consumption_calculated
-   * ------------------- */
-  // private async fetchDashboardData(
-  //   mode: 'live' | 'historic' | 'range',
-  //   config: DashboardConfig,
-  //   start?: string,
-  //   end?: string,
-  // ) {
-  //   const pipeline = this.buildAggregationPipeline(
-  //     mode,
-  //     config.projection,
-  //     start,
-  //     end,
-  //   );
-
-  //   console.log('Executing pipeline for mode:', mode);
-  //   console.log('Date range:', { start, end });
-
-  //   const data = await this.collection.aggregate(pipeline).toArray();
-
-  //   console.log(
-  //     `Fetched ${data.length} records from database for mode: ${mode}`,
-  //   );
-
-  //   this.logDataValidation(data, mode, config.projection);
-
-  //   if (!data.length) {
-  //     console.log('No data found for query:', { mode, start, end });
-  //     return {
-  //       metrics: mode === 'range' ? { onDurationMinutes: 0 } : {},
-  //       charts: {},
-  //     };
-  //   }
-
-  //   let formattedData;
-  //   if (mode === 'historic') {
-  //     formattedData = data.map((doc) => ({
-  //       ...this.fillMissingFieldsWithZero(doc, config.projection),
-  //       timestamp: this.formatDateTimestamp(doc.timestamp),
-  //     }));
-  //   } else {
-  //     formattedData = data.map((doc) => ({
-  //       ...doc,
-  //       timestamp: this.formatDateTimestamp(doc.timestamp),
-  //     }));
-  //   }
-
-  //   const latest = formattedData[formattedData.length - 1];
-  //   const metricsData = mode === 'live' ? [] : formattedData;
-  //   let metrics = config.metricsMapper(latest, metricsData, mode);
-
-  //   // ✅ EXISTING: Running hours calculation
-  //   if (mode === 'live') {
-  //     metrics.runningHours = latest.Engine_Running_Time_calculated || 0;
-  //     console.log(
-  //       `Live mode - Running hours from latest: ${metrics.runningHours}`,
-  //     );
-  //   } else {
-  //     metrics.runningHours = this.calculateRunningHours(formattedData);
-  //   }
-
-  //   // ✅ NEW: Running hours with hours & minutes calculation
-  //   let runningHoursWithMinutes;
-  //   if (mode === 'live') {
-  //     const totalHours = latest.Engine_Running_Time_calculated || 0;
-  //     runningHoursWithMinutes = this.convertToHoursMinutes(totalHours);
-  //     console.log(
-  //       `Live mode - Running hours with minutes: ${totalHours} = ${runningHoursWithMinutes.hours}h ${runningHoursWithMinutes.minutes}m`,
-  //     );
-  //   } else {
-  //     runningHoursWithMinutes =
-  //       this.calculateRunningHoursWithMinutes(formattedData);
-  //   }
-
-  //   // ✅ UPDATED: Total Fuel Consumed calculation (MAX - MIN) and convert to liters
-  //   let totalFuelConsumed;
-  //   let totalFuelConsumedLiters;
-  //   if (mode === 'live') {
-  //     totalFuelConsumed = latest.Total_Fuel_Consumption_calculated || 0;
-  //     totalFuelConsumedLiters = totalFuelConsumed * 3.7854;
-  //     console.log(
-  //       `Live mode - Total Fuel Consumed from latest: ${totalFuelConsumed} gallons = ${totalFuelConsumedLiters} liters`,
-  //     );
-  //   } else {
-  //     totalFuelConsumed = this.calculateTotalFuelConsumed(formattedData);
-  //     totalFuelConsumedLiters = totalFuelConsumed * 3.7854;
-  //   }
-
-  //   // ✅ UPDATED: Fuel Consumed Current Run calculation using Total_Fuel_Consumption_calculated (last - first)
-  //   let fuelConsumedCurrentRun;
-  //   let fuelConsumedCurrentRunLiters;
-  //   if (mode === 'live') {
-  //     // For live mode, use the latest value directly
-  //     fuelConsumedCurrentRun = latest.Total_Fuel_Consumption_calculated || 0;
-  //     fuelConsumedCurrentRunLiters = fuelConsumedCurrentRun * 3.7854;
-  //     console.log(
-  //       `Live mode - Fuel Consumed Current Run from latest: ${fuelConsumedCurrentRun} gallons = ${fuelConsumedCurrentRunLiters} liters`,
-  //     );
-  //   } else {
-  //     // For historic/range mode, calculate difference (last - first)
-  //     fuelConsumedCurrentRun =
-  //       this.calculateFuelConsumedCurrentRun(formattedData);
-  //     fuelConsumedCurrentRunLiters = fuelConsumedCurrentRun * 3.7854;
-  //   }
-
-  //   // Add new fields to metrics
-  //   metrics = {
-  //     ...metrics,
-  //     runningHoursH: runningHoursWithMinutes.hours,
-  //     runningHoursM: runningHoursWithMinutes.minutes,
-  //     totalHours: runningHoursWithMinutes.totalHours,
-  //     fuelConsumed: +totalFuelConsumedLiters.toFixed(2), // Converted to liters
-  //     fuelConsumedCurrentRun: +fuelConsumedCurrentRunLiters.toFixed(2), // Converted to liters
-  //   };
-
-  //   if (mode === 'range') {
-  //     metrics = {
-  //       ...metrics,
-  //       onDurationMinutes: this.calculateOnDurationDate(formattedData),
-  //     };
-  //   }
-
-  //   // ✅ UPDATED: Remove zero values but keep important metrics
-  //   metrics = this.removeZeroValuesButKeepImportant(metrics);
-
-  //   return {
-  //     metrics,
-  //     charts: config.chartsMapper(formattedData),
-  //   };
-  // }
-
-  /** -------------------
    * UPDATED: Core Data Fetching Logic with consistent running hours
    * ------------------- */
   private async fetchDashboardData(
@@ -2407,99 +1980,6 @@ export class DashboardService {
 
     return filledDoc;
   }
-
-  /** -------------------
-   * NEW: Enhanced Data Validation Logging
-   * ------------------- */
-  // private logDataValidation(
-  //   data: any[],
-  //   mode: string,
-  //   projection: Record<string, number>,
-  // ) {
-  //   if (data.length === 0) {
-  //     console.log(`=== NO DATA for ${mode.toUpperCase()} MODE ===`);
-  //     return;
-  //   }
-
-  //   console.log(`=== DATA VALIDATION for ${mode.toUpperCase()} MODE ===`);
-  //   console.log(`Total records: ${data.length}`);
-
-  //   // Check Engine_Running_Time_calculated values
-  //   const runningTimeValues = data
-  //     .map((d) => d.Engine_Running_Time_calculated)
-  //     .filter((val) => val !== undefined && val !== null);
-
-  //   const validRunningTimeValues = runningTimeValues.filter(
-  //     (val) => !isNaN(val) && val > 0,
-  //   );
-
-  //   console.log(
-  //     `Engine_Running_Time_calculated: ${runningTimeValues.length} total, ${validRunningTimeValues.length} valid (>0)`,
-  //   );
-
-  //   if (validRunningTimeValues.length > 0) {
-  //     const minRunningTime = Math.min(...validRunningTimeValues);
-  //     const maxRunningTime = Math.max(...validRunningTimeValues);
-  //     const avgRunningTime =
-  //       validRunningTimeValues.reduce((a, b) => a + b, 0) /
-  //       validRunningTimeValues.length;
-
-  //     console.log(
-  //       `Running hours - Min: ${minRunningTime.toFixed(2)}, Max: ${maxRunningTime.toFixed(2)}, Avg: ${avgRunningTime.toFixed(2)}`,
-  //     );
-  //   }
-
-  //   // Check first record for field completeness
-  //   const firstRecord = data[0];
-  //   const projectedFields = Object.keys(projection).filter(
-  //     (field) => field !== 'timestamp',
-  //   );
-
-  //   const missingFields = projectedFields.filter(
-  //     (field) =>
-  //       firstRecord[field] === undefined || firstRecord[field] === null,
-  //   );
-
-  //   console.log(`Fields in projection: ${projectedFields.length}`);
-  //   console.log(`Missing fields in first record: ${missingFields.length}`);
-
-  //   if (missingFields.length > 0) {
-  //     console.log('Missing fields sample:', missingFields.slice(0, 5)); // Show first 5
-  //   }
-
-  //   // Check Genset_Run_SS for range mode
-  //   if (mode === 'range') {
-  //     const gensetValues = data
-  //       .map((d) => d.Genset_Run_SS)
-  //       .filter((val) => val !== undefined);
-  //     const validGensetValues = gensetValues.filter(
-  //       (val) => val >= 1 && val <= 6,
-  //     );
-
-  //     console.log(
-  //       `Genset_Run_SS values: ${gensetValues.length} total, ${validGensetValues.length} valid (1-6)`,
-  //     );
-
-  //     if (validGensetValues.length === 0) {
-  //       console.warn('⚠️ No valid Genset_Run_SS values found in range mode!');
-  //     }
-  //   }
-
-  //   console.log('First record timestamp:', firstRecord.timestamp);
-  //   console.log('Last record timestamp:', data[data.length - 1].timestamp);
-
-  //   // Log time interval between records
-  //   if (data.length >= 2) {
-  //     const firstTime = new Date(data[0].timestamp).getTime();
-  //     const secondTime = new Date(data[1].timestamp).getTime();
-  //     const intervalMs = secondTime - firstTime;
-  //     console.log(
-  //       `Approximate interval between records: ${intervalMs / 1000} seconds`,
-  //     );
-  //   }
-
-  //   console.log('================================');
-  // }
 
   private logDataValidation(
     data: any[],
@@ -3030,7 +2510,7 @@ export class DashboardService {
 
         // 🔥 CRITICAL: Only apply Genset_Run_SS filter for RANGE mode
         if (mode === 'range') {
-          matchStage.Genset_Run_SS = { $gte: 1, $lte: 6 };
+          matchStage.Genset_Run_SS = { $gte: 0 };
         }
 
         console.log(`${mode} mode - Final UTC range:`, {
@@ -3073,6 +2553,163 @@ export class DashboardService {
 
     return pipeline;
   }
+
+  // private async buildAggregationPipeline(
+  //   mode: string,
+  //   projection: Record<string, number>,
+  //   start?: string,
+  //   end?: string,
+  // ): Promise<any[]> {
+  //   const pipeline: any[] = [];
+
+  //   // Live mode – same as before
+  //   if (mode === 'live') {
+  //     const sixHoursAgo = new Date();
+  //     sixHoursAgo.setHours(sixHoursAgo.getHours() - 6);
+
+  //     const matchStage: any = {
+  //       $expr: {
+  //         $gte: [
+  //           {
+  //             $cond: {
+  //               if: { $eq: [{ $type: '$timestamp' }, 'string'] },
+  //               then: { $dateFromString: { dateString: '$timestamp' } },
+  //               else: '$timestamp',
+  //             },
+  //           },
+  //           sixHoursAgo,
+  //         ],
+  //       },
+  //     };
+
+  //     pipeline.push({ $match: matchStage });
+  //     pipeline.push({ $project: projection });
+  //     pipeline.push({ $sort: { timestamp: 1 } });
+  //     return pipeline;
+  //   }
+
+  //   // Historic & Range mode – pehle date range banao
+  //   if (!start || !end) throw new Error('Start and end dates required');
+
+  //   const startDate = this.validateAndFormatDate(start);
+  //   const endDate = this.validateAndFormatDate(end);
+  //   const karachiOffsetMs = 5 * 60 * 60 * 1000;
+
+  //   const startUTC = new Date(startDate.getTime() - karachiOffsetMs);
+  //   const endUTC = new Date(endDate.getTime() - karachiOffsetMs);
+
+  //   if (startDate.toDateString() === endDate.toDateString()) {
+  //     startUTC.setUTCHours(0, 0, 0, 0);
+  //     endUTC.setUTCHours(23, 59, 59, 999);
+  //   } else {
+  //     endUTC.setUTCHours(23, 59, 59, 999);
+  //   }
+
+  //   const dateMatchStage = {
+  //     $expr: {
+  //       $and: [
+  //         {
+  //           $gte: [
+  //             {
+  //               $cond: {
+  //                 if: { $eq: [{ $type: '$timestamp' }, 'string'] },
+  //                 then: { $dateFromString: { dateString: '$timestamp' } },
+  //                 else: '$timestamp',
+  //               },
+  //             },
+  //             startUTC,
+  //           ],
+  //         },
+  //         {
+  //           $lte: [
+  //             {
+  //               $cond: {
+  //                 if: { $eq: [{ $type: '$timestamp' }, 'string'] },
+  //                 then: { $dateFromString: { dateString: '$timestamp' } },
+  //                 else: '$timestamp',
+  //               },
+  //             },
+  //             endUTC,
+  //           ],
+  //         },
+  //       ],
+  //     },
+  //   };
+
+  //   // SIRF RANGE MODE MEIN → Actual running window detect karo (jaise TrendsService)
+  //   if (mode === 'range') {
+  //     console.log('range mode → Detecting actual running window...');
+
+  //     const runWindow = await this.collection
+  //       .aggregate([
+  //         { $match: dateMatchStage },
+  //         { $match: { Genset_Run_SS: { $gte: 0 } } },
+  //         {
+  //           $group: {
+  //             _id: null,
+  //             minTime: { $min: '$timestamp' },
+  //             maxTime: { $max: '$timestamp' },
+  //           },
+  //         },
+  //       ])
+  //       .toArray();
+
+  //     if (!runWindow.length || !runWindow[0]?.minTime) {
+  //       console.log('No running data found in range → returning empty');
+  //       return []; // Genset nahi chala → empty result
+  //     }
+
+  //     const actualStart = runWindow[0].minTime;
+  //     const actualEnd = runWindow[0].maxTime;
+
+  //     console.log(
+  //       `Actual running window: ${new Date(actualStart).toLocaleString()} → ${new Date(actualEnd).toLocaleString()}`,
+  //     );
+
+  //     // Final match: sirf actual running duration
+  //     const finalMatch: any = {
+  //       $expr: {
+  //         $and: [
+  //           {
+  //             $gte: [
+  //               {
+  //                 $cond: {
+  //                   if: { $eq: [{ $type: '$timestamp' }, 'string'] },
+  //                   then: { $dateFromString: { dateString: '$timestamp' } },
+  //                   else: '$timestamp',
+  //                 },
+  //               },
+  //               actualStart,
+  //             ],
+  //           },
+  //           {
+  //             $lte: [
+  //               {
+  //                 $cond: {
+  //                   if: { $eq: [{ $type: '$timestamp' }, 'string'] },
+  //                   then: { $dateFromString: { dateString: '$timestamp' } },
+  //                   else: '$timestamp',
+  //                 },
+  //               },
+  //               actualEnd,
+  //             ],
+  //           },
+  //         ],
+  //       },
+  //     };
+
+  //     pipeline.push({ $match: finalMatch });
+  //   } else {
+  //     // Historic mode → pura date range (off bhi included)
+  //     console.log('historic mode → Full date range (including off state)');
+  //     pipeline.push({ $match: dateMatchStage });
+  //   }
+
+  //   pipeline.push({ $project: projection });
+  //   pipeline.push({ $sort: { timestamp: 1 } });
+
+  //   return pipeline;
+  // }
 
   /** -------------------
    * Date Timestamp Formatter
@@ -3352,6 +2989,11 @@ export class DashboardService {
       Genset_Total_Power_Factor_calculated:
         d.Genset_Total_Power_Factor_calculated ?? null,
     }));
+    charts.coc = data.map((d) => ({
+      time: d.timestamp,
+      Oil_TemperatureC: this.formulas.convertOilTempToCelsius?.(d) || 0,
+      Coolant_TemperatureC: this.formulas.convertCoolantToCelsius?.(d) || 0,
+    }));
 
     charts.electroMechanicalStress = data.map((d) => {
       // 🔥 NEW: Debug each document
@@ -3392,6 +3034,8 @@ export class DashboardService {
       time: d.timestamp,
       Intake_Manifold3_Temperature:
         d.Intake_Manifold_Temperature_calculated ?? null,
+      Intake_Manifold3_TemperatureC:
+        this.formulas.convertIntakeToCelsius(d) ?? null,
       Boost_Pressure: d.Boost_Pressure ?? null,
     }));
 
