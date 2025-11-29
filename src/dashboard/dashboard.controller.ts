@@ -1599,44 +1599,44 @@ export class DashboardController {
    * --------------------------------------------------- */
 
   // Get Multiple Specific Dashboards
-  @Get('batch')
-  async getMultipleDashboards(
-    @Query('dashboards') dashboards: string, // comma separated: 'dashboard1,dashboard2,dashboard3'
-    @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
-    @Query('start') start?: string,
-    @Query('end') end?: string,
-  ) {
-    const dashboardList = dashboards.split(',');
-    return this.dashboardService.getMultipleDashboards(
-      dashboardList,
-      mode,
-      start,
-      end,
-    );
-  }
+  // @Get('batch')
+  // async getMultipleDashboards(
+  //   @Query('dashboards') dashboards: string, // comma separated: 'dashboard1,dashboard2,dashboard3'
+  //   @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
+  //   @Query('start') start?: string,
+  //   @Query('end') end?: string,
+  // ) {
+  //   const dashboardList = dashboards.split(',');
+  //   return this.dashboardService.getMultipleDashboards(
+  //     dashboardList,
+  //     mode,
+  //     start,
+  //     end,
+  //   );
+  // }
 
   // Get All Dashboards in Single Call
-  @Get('all')
-  async getAllDashboards(
-    @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
-    @Query('start') start?: string,
-    @Query('end') end?: string,
-  ) {
-    const allDashboards = [
-      'dashboard1',
-      'dashboard2',
-      'dashboard3',
-      'dashboard4',
-      'dashboard5',
-      'dashboard6',
-    ];
-    return this.dashboardService.getMultipleDashboards(
-      allDashboards,
-      mode,
-      start,
-      end,
-    );
-  }
+  // @Get('all')
+  // async getAllDashboards(
+  //   @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
+  //   @Query('start') start?: string,
+  //   @Query('end') end?: string,
+  // ) {
+  //   const allDashboards = [
+  //     'dashboard1',
+  //     'dashboard2',
+  //     'dashboard3',
+  //     'dashboard4',
+  //     'dashboard5',
+  //     'dashboard6',
+  //   ];
+  //   return this.dashboardService.getMultipleDashboards(
+  //     allDashboards,
+  //     mode,
+  //     start,
+  //     end,
+  //   );
+  // }
 
   /** ---------------------------------------------------
    *  HEALTH CHECK & CACHE STATUS
@@ -1653,12 +1653,12 @@ export class DashboardController {
     };
   }
 
-  @Get('performance-general')
-  async getConsumptionMetrics(
-    @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
-    @Query('start') start?: string,
-    @Query('end') end?: string,
-  ) {
-    return this.dashboardService.getConsumptionMetrics(mode, start, end);
-  }
+  // @Get('performance-general')
+  // async getConsumptionMetrics(
+  //   @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
+  //   @Query('start') start?: string,
+  //   @Query('end') end?: string,
+  // ) {
+  //   return this.dashboardService.getConsumptionMetrics(mode, start, end);
+  // }
 }

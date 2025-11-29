@@ -17,7 +17,8 @@ interface DashboardConfig {
 export class DashboardService {
   private collection;
   private cache = new Map();
-  private readonly CACHE_TTL = 360000; // 30 min
+  // private cache = new Map<string, { data: any; ts: number }>();
+  private readonly CACHE_TTL = 5 * 60 * 1000; // 5 minutes (live ke liye best)
 
   constructor(
     @Inject('MONGO_CLIENT') private readonly db: Db,
@@ -223,408 +224,128 @@ export class DashboardService {
   /** -------------------
    * UPDATED: Core Data Fetching Logic with consistent running hours
    * ------------------- */
-  // private async fetchDashboardData(
-  //   mode: 'live' | 'historic' | 'range',
-  //   config: DashboardConfig,
-  //   start?: string,
-  //   end?: string,
-  // ) {
-  //   const pipeline = this.buildAggregationPipeline(
-  //     mode,
-  //     config.projection,
-  //     start,
-  //     end,
-  //   );
-
-  //   console.log('Executing pipeline for mode:', mode);
-  //   console.log('Date range:', { start, end });
-
-  //   const data = await this.collection.aggregate(pipeline).toArray();
-
-  //   console.log(
-  //     `Fetched ${data.length} records from database for mode: ${mode}`,
-  //   );
-
-  //   this.logDataValidation(data, mode, config.projection);
-
-  //   if (!data.length) {
-  //     console.log('No data found for query:', { mode, start, end });
-  //     return {
-  //       metrics: mode === 'range' ? { onDurationMinutes: 0 } : {},
-  //       charts: {},
-  //     };
-  //   }
-
-  //   let formattedData;
-  //   if (mode === 'historic') {
-  //     formattedData = data.map((doc) => ({
-  //       ...this.fillMissingFieldsWithZero(doc, config.projection),
-  //       timestamp: this.formatDateTimestamp(doc.timestamp),
-  //     }));
-  //   } else {
-  //     formattedData = data.map((doc) => ({
-  //       ...doc,
-  //       timestamp: this.formatDateTimestamp(doc.timestamp),
-  //     }));
-  //   }
-
-  //   const latest = formattedData[formattedData.length - 1];
-  //   const metricsData = mode === 'live' ? [] : formattedData;
-  //   let metrics = config.metricsMapper(latest, metricsData, mode);
-
-  //   // ✅ FIXED: Use consistent running hours calculation
-  //   let runningHoursDecimal;
-  //   let runningHoursWithMinutes;
-
-  //   if (mode === 'live') {
-  //     runningHoursDecimal = latest.Engine_Running_Time_calculated || 0;
-  //     runningHoursWithMinutes = this.convertToHoursMinutes(runningHoursDecimal);
-  //     console.log(
-  //       `Live mode - Running hours: ${runningHoursDecimal} = ${runningHoursWithMinutes.totalHours}`,
-  //     );
-  //   } else {
-  //     // For historic/range mode, calculate from data
-  //     runningHoursDecimal = this.calculateRunningHours(formattedData);
-  //     runningHoursWithMinutes = this.convertToHoursMinutes(runningHoursDecimal);
-  //     console.log(
-  //       `Historic/Range mode - Running hours: ${runningHoursDecimal} = ${runningHoursWithMinutes.totalHours}`,
-  //     );
-  //   }
-
-  //   // ✅ UPDATED: Total Fuel Consumed calculation (MAX - MIN) and convert to liters
-  //   let totalFuelConsumed;
-  //   let totalFuelConsumedLiters;
-  //   if (mode === 'live') {
-  //     totalFuelConsumed = latest.Total_Fuel_Consumption_calculated || 0;
-  //     totalFuelConsumedLiters = totalFuelConsumed * 3.7854;
-  //     console.log(
-  //       `Live mode - Total Fuel Consumed from latest: ${totalFuelConsumed} gallons = ${totalFuelConsumedLiters} liters`,
-  //     );
-  //   } else {
-  //     totalFuelConsumed = this.calculateTotalFuelConsumed(formattedData);
-  //     totalFuelConsumedLiters = totalFuelConsumed * 3.7854;
-  //   }
-
-  //   // ✅ UPDATED: Fuel Consumed Current Run calculation
-  //   let fuelConsumedCurrentRun;
-  //   let fuelConsumedCurrentRunLiters;
-  //   if (mode === 'live') {
-  //     fuelConsumedCurrentRun = latest.Total_Fuel_Consumption_calculated || 0;
-  //     fuelConsumedCurrentRunLiters = fuelConsumedCurrentRun * 3.7854;
-  //     console.log(
-  //       `Live mode - Fuel Consumed Current Run from latest: ${fuelConsumedCurrentRun} gallons = ${fuelConsumedCurrentRunLiters} liters`,
-  //     );
-  //   } else {
-  //     fuelConsumedCurrentRun =
-  //       this.calculateFuelConsumedCurrentRun(formattedData);
-  //     fuelConsumedCurrentRunLiters = fuelConsumedCurrentRun * 3.7854;
-  //   }
-
-  //   // ✅ FIXED: Use consistent running hours values
-  //   metrics = {
-  //     ...metrics,
-  //     runningHours: +runningHoursDecimal.toFixed(2), // Keep the decimal value
-  //     runningHoursH: runningHoursWithMinutes.hours,
-  //     runningHoursM: runningHoursWithMinutes.minutes,
-  //     totalHours: runningHoursWithMinutes.totalHours, // Use the formatted "H:MM" value
-  //     fuelConsumed: +totalFuelConsumedLiters.toFixed(2),
-  //     fuelConsumedCurrentRun: +fuelConsumedCurrentRunLiters.toFixed(2),
-  //   };
-
-  //   if (mode === 'range') {
-  //     metrics = {
-  //       ...metrics,
-  //       onDurationMinutes: this.calculateOnDurationDate(formattedData),
-  //     };
-  //   }
-
-  //   // ✅ UPDATED: Remove zero values but keep important metrics
-  //   metrics = this.removeZeroValuesButKeepImportant(metrics);
-
-  //   return {
-  //     metrics,
-  //     charts: config.chartsMapper(formattedData),
-  //   };
-  // }
-
   private async fetchDashboardData(
     mode: 'live' | 'historic' | 'range',
     config: DashboardConfig,
     start?: string,
     end?: string,
   ) {
-    // Step 1: Build base pipeline (just date range)
-    const basePipeline = this.buildAggregationPipeline(
+    const pipeline = this.buildAggregationPipeline(
       mode,
       config.projection,
       start,
       end,
     );
 
-    let finalPipeline = [...basePipeline];
+    console.log('Executing pipeline for mode:', mode);
+    console.log('Date range:', { start, end });
 
-    // Step 2: RANGE MODE → Detect actual ON window
-    if (mode === 'range') {
-      // console.log(
-      //   'RANGE MODE → Detecting actual ON window (Genset_Run_SS >= 0)...',
-      // );
+    const data = await this.collection.aggregate(pipeline).toArray();
 
-      const windowResult = await this.collection
-        .aggregate([
-          ...basePipeline,
-          { $match: { Genset_Run_SS: { $gte: 0 } } },
-          {
-            $group: {
-              _id: null,
-              minTs: {
-                $min: { $dateFromString: { dateString: '$timestamp' } },
-              },
-              maxTs: {
-                $max: { $dateFromString: { dateString: '$timestamp' } },
-              },
-            },
-          },
-        ])
-        .toArray();
+    console.log(
+      `Fetched ${data.length} records from database for mode: ${mode}`,
+    );
 
-      if (!windowResult.length || !windowResult[0]?.minTs) {
-        // console.log('No ON period found → returning empty (range mode)');
-        return {
-          metrics: { onDurationMinutes: 0 },
-          charts: {},
-        };
-      }
+    this.logDataValidation(data, mode, config.projection);
 
-      const actualStart = windowResult[0].minTs;
-      const actualEnd = windowResult[0].maxTs;
-      // console.log(
-      //   `Actual ON window: ${actualStart.toISOString()} → ${actualEnd.toISOString()}`,
-      // );
-
-      // Final pipeline for range mode: only actual ON duration
-      finalPipeline = [
-        {
-          $match: {
-            $expr: {
-              $and: [
-                {
-                  $gte: [
-                    { $dateFromString: { dateString: '$timestamp' } },
-                    actualStart,
-                  ],
-                },
-                {
-                  $lte: [
-                    { $dateFromString: { dateString: '$timestamp' } },
-                    actualEnd,
-                  ],
-                },
-              ],
-            },
-          },
-        },
-        { $project: config.projection },
-        { $sort: { timestamp: 1 } },
-      ];
-    }
-
-    // Step 3: Fetch raw data
-    const rawData = await this.collection.aggregate(finalPipeline).toArray();
-    // console.log(`Fetched ${rawData.length} raw records for ${mode} mode`);
-
-    if (rawData.length === 0) {
+    if (!data.length) {
+      console.log('No data found for query:', { mode, start, end });
       return {
         metrics: mode === 'range' ? { onDurationMinutes: 0 } : {},
         charts: {},
       };
     }
 
-    // Step 4: Format data and handle historic mode with timeline
     let formattedData;
-
     if (mode === 'historic') {
-      const startDate = this.validateAndFormatDate(start!);
-      const endDate = this.validateAndFormatDate(end!);
-
-      // Fields for charts (same as projection, minus timestamp/_id)
-      const fieldsForChart = Object.keys(config.projection).filter(
-        (f) => f !== 'timestamp' && f !== '_id',
-      );
-
-      // Generate complete timeline with 12-second intervals
-      formattedData = this.generateCompleteTimeSeriesWithZeros(
-        rawData,
-        startDate,
-        endDate,
-        fieldsForChart,
-        12, // 12-second interval
-      );
-
-      // Apply zero-fill for missing fields (backup)
-      formattedData = formattedData.map((doc) => {
-        const processedDoc = this.fillMissingFieldsWithZero(
-          doc,
-          config.projection,
-        );
-        return {
-          ...processedDoc,
-          timestamp: doc.timestamp, // Already formatted
-        };
-      });
+      formattedData = data.map((doc) => ({
+        ...this.fillMissingFieldsWithZero(doc, config.projection),
+        timestamp: this.formatDateTimestamp(doc.timestamp),
+      }));
     } else {
-      // Live or Range mode → no timeline generation
-      formattedData = rawData.map((doc) => {
-        const processedDoc =
-          mode === 'range'
-            ? doc
-            : this.fillMissingFieldsWithZero(doc, config.projection);
-        return {
-          ...processedDoc,
-          timestamp: this.formatDateTimestamp(doc.timestamp),
-        };
-      });
+      formattedData = data.map((doc) => ({
+        ...doc,
+        timestamp: this.formatDateTimestamp(doc.timestamp),
+      }));
     }
 
-    // Step 5: Calculate metrics
     const latest = formattedData[formattedData.length - 1];
+    const metricsData = mode === 'live' ? [] : formattedData;
+    let metrics = config.metricsMapper(latest, metricsData, mode);
 
-    let metrics = config.metricsMapper(latest, formattedData, mode);
+    // ✅ FIXED: Use consistent running hours calculation
+    let runningHoursDecimal;
+    let runningHoursWithMinutes;
 
-    const runningHoursDecimal =
-      mode === 'live'
-        ? latest.Engine_Running_Time_calculated || 0
-        : this.calculateRunningHours(formattedData);
+    if (mode === 'live') {
+      runningHoursDecimal = latest.Engine_Running_Time_calculated || 0;
+      runningHoursWithMinutes = this.convertToHoursMinutes(runningHoursDecimal);
+      console.log(
+        `Live mode - Running hours: ${runningHoursDecimal} = ${runningHoursWithMinutes.totalHours}`,
+      );
+    } else {
+      // For historic/range mode, calculate from data
+      runningHoursDecimal = this.calculateRunningHours(formattedData);
+      runningHoursWithMinutes = this.convertToHoursMinutes(runningHoursDecimal);
+      console.log(
+        `Historic/Range mode - Running hours: ${runningHoursDecimal} = ${runningHoursWithMinutes.totalHours}`,
+      );
+    }
 
-    const totalFuel =
-      mode === 'live'
-        ? latest.Total_Fuel_Consumption_calculated || 0
-        : this.calculateTotalFuelConsumed(formattedData);
+    // ✅ UPDATED: Total Fuel Consumed calculation (MAX - MIN) and convert to liters
+    let totalFuelConsumed;
+    let totalFuelConsumedLiters;
+    if (mode === 'live') {
+      totalFuelConsumed = latest.Total_Fuel_Consumption_calculated || 0;
+      totalFuelConsumedLiters = totalFuelConsumed * 3.7854;
+      console.log(
+        `Live mode - Total Fuel Consumed from latest: ${totalFuelConsumed} gallons = ${totalFuelConsumedLiters} liters`,
+      );
+    } else {
+      totalFuelConsumed = this.calculateTotalFuelConsumed(formattedData);
+      totalFuelConsumedLiters = totalFuelConsumed * 3.7854;
+    }
 
-    const currentRunFuel =
-      mode === 'live'
-        ? latest.Total_Fuel_Consumption_calculated || 0
-        : this.calculateFuelConsumedCurrentRun(formattedData);
+    // ✅ UPDATED: Fuel Consumed Current Run calculation
+    let fuelConsumedCurrentRun;
+    let fuelConsumedCurrentRunLiters;
+    if (mode === 'live') {
+      fuelConsumedCurrentRun = latest.Total_Fuel_Consumption_calculated || 0;
+      fuelConsumedCurrentRunLiters = fuelConsumedCurrentRun * 3.7854;
+      console.log(
+        `Live mode - Fuel Consumed Current Run from latest: ${fuelConsumedCurrentRun} gallons = ${fuelConsumedCurrentRunLiters} liters`,
+      );
+    } else {
+      fuelConsumedCurrentRun =
+        this.calculateFuelConsumedCurrentRun(formattedData);
+      fuelConsumedCurrentRunLiters = fuelConsumedCurrentRun * 3.7854;
+    }
 
-    const onDuration =
-      mode === 'range' ? this.calculateOnDurationDate(formattedData) : 0;
-
-    const { hours, minutes, totalHours } =
-      this.convertToHoursMinutes(runningHoursDecimal);
-
+    // ✅ FIXED: Use consistent running hours values
     metrics = {
       ...metrics,
-      runningHours: +runningHoursDecimal.toFixed(2),
-      runningHoursH: hours,
-      runningHoursM: minutes,
-      totalHours,
-      fuelConsumed: +(totalFuel * 3.7854).toFixed(2),
-      fuelConsumedCurrentRun: +(currentRunFuel * 3.7854).toFixed(2),
-      ...(mode === 'range' && { onDurationMinutes: onDuration }),
+      runningHours: +runningHoursDecimal.toFixed(2), // Keep the decimal value
+      runningHoursH: runningHoursWithMinutes.hours,
+      runningHoursM: runningHoursWithMinutes.minutes,
+      totalHours: runningHoursWithMinutes.totalHours, // Use the formatted "H:MM" value
+      fuelConsumed: +totalFuelConsumedLiters.toFixed(2),
+      fuelConsumedCurrentRun: +fuelConsumedCurrentRunLiters.toFixed(2),
     };
 
-    metrics = this.removeZeroValuesButKeepImportant(metrics);
+    if (mode === 'range') {
+      metrics = {
+        ...metrics,
+        onDurationMinutes: this.calculateOnDurationDate(formattedData),
+      };
+    }
 
-    // console.log(`Final metrics for ${mode} mode:`, Object.keys(metrics));
+    // ✅ UPDATED: Remove zero values but keep important metrics
+    metrics = this.removeZeroValuesButKeepImportant(metrics);
 
     return {
       metrics,
       charts: config.chartsMapper(formattedData),
     };
-  }
-
-  private generateCompleteTimeSeriesWithZeros(
-    rawData: any[],
-    startDate: Date,
-    endDate: Date,
-    projectionFields: string[],
-    intervalSeconds = 12,
-  ): any[] {
-    const result: any[] = [];
-    const fieldDefaults = projectionFields.reduce((acc, field) => {
-      acc[field] = 0;
-      return acc;
-    }, {} as any);
-
-    // Step 1: Index banao timestamp → doc (fast lookup)
-    const dataMap = new Map<string, any>();
-    rawData.forEach((doc) => {
-      dataMap.set(doc.timestamp, doc);
-    });
-
-    // Step 2: Sort rawData by timestamp (important!)
-    const sortedRawData = [...rawData].sort((a, b) =>
-      a.timestamp.localeCompare(b.timestamp),
-    );
-
-    let current = new Date(startDate);
-    current.setSeconds(
-      Math.floor(current.getSeconds() / intervalSeconds) * intervalSeconds,
-      0,
-    ); // round down to nearest 12-sec
-
-    console
-      .log
-      // `Generating 12-sec timeline from ${startDate} to ${endDate}...`,
-      ();
-
-    while (current <= endDate) {
-      const timestampStr = this.formatDateTimestamp(current.toISOString());
-
-      // Step 3: Pehle exact match try karo
-      let realDoc = dataMap.get(timestampStr);
-
-      // Agar exact nahi mila → nearest previous (ya nearest any) dhundho
-      if (!realDoc && sortedRawData.length > 0) {
-        // Find closest previous or next
-        let closestDoc: any = null;
-        let minDiff = Infinity;
-
-        for (const doc of sortedRawData) {
-          const docTime = new Date(doc.timestamp.replace(' ', 'T')); // assuming format is "2025-11-28 10:30:45"
-          const diff = Math.abs(docTime.getTime() - current.getTime());
-
-          if (diff < minDiff) {
-            minDiff = diff;
-            closestDoc = doc;
-          }
-        }
-
-        if (closestDoc && minDiff <= 30 * 1000) {
-          // agar 30 sec se kam door hai to use karo
-          realDoc = closestDoc;
-          // console.log(
-          //   `Using nearest data for ${timestampStr} → ${realDoc.timestamp} (diff: ${minDiff / 1000}s)`,
-          // );
-        }
-      }
-
-      if (realDoc) {
-        const isOff =
-          realDoc.Genset_Run_SS == null || realDoc.Genset_Run_SS < 0;
-        const baseDoc = isOff
-          ? {
-              ...fieldDefaults,
-              timestamp: timestampStr,
-              Genset_Run_SS: realDoc.Genset_Run_SS ?? -1,
-            }
-          : { ...realDoc, timestamp: timestampStr };
-
-        result.push(baseDoc);
-      } else {
-        result.push({
-          ...fieldDefaults,
-          timestamp: timestampStr,
-          Genset_Run_SS: -1,
-        });
-      }
-
-      current.setSeconds(current.getSeconds() + intervalSeconds);
-    }
-
-    // console.log(
-    //   `Generated ${result.length} points (12-sec grid) with real data where available`,
-    // );
-    return result;
   }
 
   /** -------------------
@@ -1207,272 +928,6 @@ export class DashboardService {
   /** -------------------
    * UPDATED: Aggregation Pipeline with Genset Filter for Range Mode
    * ------------------- */
-  // private buildAggregationPipeline(
-  //   mode: string,
-  //   projection: Record<string, number>,
-  //   start?: string,
-  //   end?: string,
-  // ): any[] {
-  //   const pipeline: any[] = [];
-  //   const matchStage: any = {};
-
-  //   console.log('=== BUILDING PIPELINE ===');
-  //   console.log('Mode:', mode);
-  //   console.log('Original dates:', { start, end });
-
-  //   if ((mode === 'historic' || mode === 'range') && start && end) {
-  //     try {
-  //       const startDate = this.validateAndFormatDate(start);
-  //       const endDate = this.validateAndFormatDate(end);
-
-  //       // ✅ Karachi offset (UTC+5)
-  //       const karachiOffsetMs = 5 * 60 * 60 * 1000;
-
-  //       // ✅ Convert local → UTC
-  //       const startUTC = new Date(startDate.getTime() - karachiOffsetMs);
-  //       const endUTC = new Date(endDate.getTime() - karachiOffsetMs);
-
-  //       // ✅ Adjust hours
-  //       if (startDate.toDateString() === endDate.toDateString()) {
-  //         startUTC.setUTCHours(0, 0, 0, 0);
-  //         endUTC.setUTCHours(23, 59, 59, 999);
-  //       } else {
-  //         endUTC.setUTCHours(23, 59, 59, 999);
-  //       }
-
-  //       // ✅ Hybrid filter for string or Date timestamps
-  //       matchStage.$expr = {
-  //         $and: [
-  //           {
-  //             $gte: [
-  //               {
-  //                 $cond: {
-  //                   if: { $eq: [{ $type: '$timestamp' }, 'string'] },
-  //                   then: { $dateFromString: { dateString: '$timestamp' } },
-  //                   else: '$timestamp',
-  //                 },
-  //               },
-  //               startUTC,
-  //             ],
-  //           },
-  //           {
-  //             $lte: [
-  //               {
-  //                 $cond: {
-  //                   if: { $eq: [{ $type: '$timestamp' }, 'string'] },
-  //                   then: { $dateFromString: { dateString: '$timestamp' } },
-  //                   else: '$timestamp',
-  //                 },
-  //               },
-  //               endUTC,
-  //             ],
-  //           },
-  //         ],
-  //       };
-
-  //       // 🔥 CRITICAL: Only apply Genset_Run_SS filter for RANGE mode
-  //       if (mode === 'range') {
-  //         matchStage.Genset_Run_SS = { $gte: 0 };
-  //       }
-
-  //       console.log(`${mode} mode - Final UTC range:`, {
-  //         startUTC: startUTC.toISOString(),
-  //         endUTC: endUTC.toISOString(),
-  //         gensetFilter: mode === 'range' ? '1-6' : 'none',
-  //       });
-  //     } catch (error) {
-  //       console.error('Date validation error:', error.message);
-  //       throw error;
-  //     }
-  //   } else if (mode === 'live') {
-  //     const sixHoursAgo = new Date();
-  //     sixHoursAgo.setHours(sixHoursAgo.getHours() - 6);
-
-  //     // ✅ Handle hybrid type for "live" mode as well
-  //     matchStage.$expr = {
-  //       $gte: [
-  //         {
-  //           $cond: {
-  //             if: { $eq: [{ $type: '$timestamp' }, 'string'] },
-  //             then: { $dateFromString: { dateString: '$timestamp' } },
-  //             else: '$timestamp',
-  //           },
-  //         },
-  //         sixHoursAgo,
-  //       ],
-  //     };
-
-  //     console.log('Live mode - Last 6 hours');
-  //   }
-
-  //   if (Object.keys(matchStage).length > 0) {
-  //     pipeline.push({ $match: matchStage });
-  //     console.log('Final match stage:', JSON.stringify(matchStage, null, 2));
-  //   }
-
-  //   pipeline.push({ $project: projection });
-  //   pipeline.push({ $sort: { timestamp: 1 } });
-
-  //   return pipeline;
-  // }
-
-  // private async buildAggregationPipeline(
-  //   mode: string,
-  //   projection: Record<string, number>,
-  //   start?: string,
-  //   end?: string,
-  // ): Promise<any[]> {
-  //   const pipeline: any[] = [];
-
-  //   // Live mode – same as before
-  //   if (mode === 'live') {
-  //     const sixHoursAgo = new Date();
-  //     sixHoursAgo.setHours(sixHoursAgo.getHours() - 6);
-
-  //     const matchStage: any = {
-  //       $expr: {
-  //         $gte: [
-  //           {
-  //             $cond: {
-  //               if: { $eq: [{ $type: '$timestamp' }, 'string'] },
-  //               then: { $dateFromString: { dateString: '$timestamp' } },
-  //               else: '$timestamp',
-  //             },
-  //           },
-  //           sixHoursAgo,
-  //         ],
-  //       },
-  //     };
-
-  //     pipeline.push({ $match: matchStage });
-  //     pipeline.push({ $project: projection });
-  //     pipeline.push({ $sort: { timestamp: 1 } });
-  //     return pipeline;
-  //   }
-
-  //   // Historic & Range mode – pehle date range banao
-  //   if (!start || !end) throw new Error('Start and end dates required');
-
-  //   const startDate = this.validateAndFormatDate(start);
-  //   const endDate = this.validateAndFormatDate(end);
-  //   const karachiOffsetMs = 5 * 60 * 60 * 1000;
-
-  //   const startUTC = new Date(startDate.getTime() - karachiOffsetMs);
-  //   const endUTC = new Date(endDate.getTime() - karachiOffsetMs);
-
-  //   if (startDate.toDateString() === endDate.toDateString()) {
-  //     startUTC.setUTCHours(0, 0, 0, 0);
-  //     endUTC.setUTCHours(23, 59, 59, 999);
-  //   } else {
-  //     endUTC.setUTCHours(23, 59, 59, 999);
-  //   }
-
-  //   const dateMatchStage = {
-  //     $expr: {
-  //       $and: [
-  //         {
-  //           $gte: [
-  //             {
-  //               $cond: {
-  //                 if: { $eq: [{ $type: '$timestamp' }, 'string'] },
-  //                 then: { $dateFromString: { dateString: '$timestamp' } },
-  //                 else: '$timestamp',
-  //               },
-  //             },
-  //             startUTC,
-  //           ],
-  //         },
-  //         {
-  //           $lte: [
-  //             {
-  //               $cond: {
-  //                 if: { $eq: [{ $type: '$timestamp' }, 'string'] },
-  //                 then: { $dateFromString: { dateString: '$timestamp' } },
-  //                 else: '$timestamp',
-  //               },
-  //             },
-  //             endUTC,
-  //           ],
-  //         },
-  //       ],
-  //     },
-  //   };
-
-  //   // SIRF RANGE MODE MEIN → Actual running window detect karo (jaise TrendsService)
-  //   if (mode === 'range') {
-  //     console.log('range mode → Detecting actual running window...');
-
-  //     const runWindow = await this.collection
-  //       .aggregate([
-  //         { $match: dateMatchStage },
-  //         { $match: { Genset_Run_SS: { $gte: 0 } } },
-  //         {
-  //           $group: {
-  //             _id: null,
-  //             minTime: { $min: '$timestamp' },
-  //             maxTime: { $max: '$timestamp' },
-  //           },
-  //         },
-  //       ])
-  //       .toArray();
-
-  //     if (!runWindow.length || !runWindow[0]?.minTime) {
-  //       console.log('No running data found in range → returning empty');
-  //       return []; // Genset nahi chala → empty result
-  //     }
-
-  //     const actualStart = runWindow[0].minTime;
-  //     const actualEnd = runWindow[0].maxTime;
-
-  //     console.log(
-  //       `Actual running window: ${new Date(actualStart).toLocaleString()} → ${new Date(actualEnd).toLocaleString()}`,
-  //     );
-
-  //     // Final match: sirf actual running duration
-  //     const finalMatch: any = {
-  //       $expr: {
-  //         $and: [
-  //           {
-  //             $gte: [
-  //               {
-  //                 $cond: {
-  //                   if: { $eq: [{ $type: '$timestamp' }, 'string'] },
-  //                   then: { $dateFromString: { dateString: '$timestamp' } },
-  //                   else: '$timestamp',
-  //                 },
-  //               },
-  //               actualStart,
-  //             ],
-  //           },
-  //           {
-  //             $lte: [
-  //               {
-  //                 $cond: {
-  //                   if: { $eq: [{ $type: '$timestamp' }, 'string'] },
-  //                   then: { $dateFromString: { dateString: '$timestamp' } },
-  //                   else: '$timestamp',
-  //                 },
-  //               },
-  //               actualEnd,
-  //             ],
-  //           },
-  //         ],
-  //       },
-  //     };
-
-  //     pipeline.push({ $match: finalMatch });
-  //   } else {
-  //     // Historic mode → pura date range (off bhi included)
-  //     console.log('historic mode → Full date range (including off state)');
-  //     pipeline.push({ $match: dateMatchStage });
-  //   }
-
-  //   pipeline.push({ $project: projection });
-  //   pipeline.push({ $sort: { timestamp: 1 } });
-
-  //   return pipeline;
-  // }
-
   private buildAggregationPipeline(
     mode: string,
     projection: Record<string, number>,
@@ -1480,99 +935,102 @@ export class DashboardService {
     end?: string,
   ): any[] {
     const pipeline: any[] = [];
+    const matchStage: any = {};
 
-    // LIVE MODE
-    if (mode === 'live') {
+    console.log('=== BUILDING PIPELINE ===');
+    console.log('Mode:', mode);
+    console.log('Original dates:', { start, end });
+
+    if ((mode === 'historic' || mode === 'range') && start && end) {
+      try {
+        const startDate = this.validateAndFormatDate(start);
+        const endDate = this.validateAndFormatDate(end);
+
+        // ✅ Karachi offset (UTC+5)
+        const karachiOffsetMs = 5 * 60 * 60 * 1000;
+
+        // ✅ Convert local → UTC
+        const startUTC = new Date(startDate.getTime() - karachiOffsetMs);
+        const endUTC = new Date(endDate.getTime() - karachiOffsetMs);
+
+        // ✅ Adjust hours
+        if (startDate.toDateString() === endDate.toDateString()) {
+          startUTC.setUTCHours(0, 0, 0, 0);
+          endUTC.setUTCHours(23, 59, 59, 999);
+        } else {
+          endUTC.setUTCHours(23, 59, 59, 999);
+        }
+
+        // ✅ Hybrid filter for string or Date timestamps
+        matchStage.$expr = {
+          $and: [
+            {
+              $gte: [
+                {
+                  $cond: {
+                    if: { $eq: [{ $type: '$timestamp' }, 'string'] },
+                    then: { $dateFromString: { dateString: '$timestamp' } },
+                    else: '$timestamp',
+                  },
+                },
+                startUTC,
+              ],
+            },
+            {
+              $lte: [
+                {
+                  $cond: {
+                    if: { $eq: [{ $type: '$timestamp' }, 'string'] },
+                    then: { $dateFromString: { dateString: '$timestamp' } },
+                    else: '$timestamp',
+                  },
+                },
+                endUTC,
+              ],
+            },
+          ],
+        };
+
+        // 🔥 CRITICAL: Only apply Genset_Run_SS filter for RANGE mode
+        if (mode === 'range') {
+          matchStage.Genset_Run_SS = { $gte: 1 };
+        }
+
+        console.log(`${mode} mode - Final UTC range:`, {
+          startUTC: startUTC.toISOString(),
+          endUTC: endUTC.toISOString(),
+          gensetFilter: mode === 'range' ? '1-6' : 'none',
+        });
+      } catch (error) {
+        console.error('Date validation error:', error.message);
+        throw error;
+      }
+    } else if (mode === 'live') {
       const sixHoursAgo = new Date();
       sixHoursAgo.setHours(sixHoursAgo.getHours() - 6);
 
-      pipeline.push({
-        $match: {
-          timestamp: { $gte: sixHoursAgo },
-        },
-      });
-    }
-    // HISTORIC & RANGE MODE
-    else if (mode === 'historic' || mode === 'range') {
-      if (!start || !end) throw new Error('Start and end dates required');
-
-      const startDate = this.validateAndFormatDate(start);
-      const endDate = this.validateAndFormatDate(end);
-      const karachiOffsetMs = 5 * 60 * 60 * 1000;
-
-      const startUTC = new Date(startDate.getTime() - karachiOffsetMs);
-      const endUTC = new Date(endDate.getTime() - karachiOffsetMs);
-
-      if (startDate.toDateString() === endDate.toDateString()) {
-        startUTC.setUTCHours(0, 0, 0, 0);
-        endUTC.setUTCHours(23, 59, 59, 999);
-      } else {
-        endUTC.setUTCHours(23, 59, 59, 999);
-      }
-
-      // Step 1: Match full date range (including OFF time for historic)
-      pipeline.push({
-        $match: {
-          $expr: {
-            $and: [
-              {
-                $gte: [
-                  {
-                    $cond: {
-                      if: { $eq: [{ $type: '$timestamp' }, 'string'] },
-                      then: { $dateFromString: { dateString: '$timestamp' } },
-                      else: '$timestamp',
-                    },
-                  },
-                  startUTC,
-                ],
-              },
-              {
-                $lte: [
-                  {
-                    $cond: {
-                      if: { $eq: [{ $type: '$timestamp' }, 'string'] },
-                      then: { $dateFromString: { dateString: '$timestamp' } },
-                      else: '$timestamp',
-                    },
-                  },
-                  endUTC,
-                ],
-              },
-            ],
-          },
-        },
-      });
-
-      // Step 2: Sirf RANGE mode mein → actual ON window detect karo
-      if (mode === 'range') {
-        console.log(
-          'Range mode → Detecting actual ON window (Genset_Run_SS >= 0)',
-        );
-
-        // Sirf ON records se min/max time nikalo
-        const onWindowPipeline = [
-          ...pipeline,
-          { $match: { Genset_Run_SS: { $gte: 0 } } },
+      // ✅ Handle hybrid type for "live" mode as well
+      matchStage.$expr = {
+        $gte: [
           {
-            $group: {
-              _id: null,
-              minTime: { $min: '$timestamp' },
-              maxTime: { $max: '$timestamp' },
+            $cond: {
+              if: { $eq: [{ $type: '$timestamp' }, 'string'] },
+              then: { $dateFromString: { dateString: '$timestamp' } },
+              else: '$timestamp',
             },
           },
-        ];
+          sixHoursAgo,
+        ],
+      };
 
-        // Ye separate aggregation chalao actual window ke liye
-        // Note: Ye async hai lekin hum yahan sync bana rahe hain (NestJS service mein allowed hai)
-        // Lekin better approach: pehle window fetch, phir data
-
-        // Hum isko pipeline ke andar nahi daal sakte cleanly, isliye hum alag se handle karenge
-        // → isliye hum pipeline return karne se pehle hi actual window use karenge in fetchDashboardData
-      }
+      console.log('Live mode - Last 6 hours');
     }
 
-    // Final projection + sort (sab modes ke liye)
+    if (Object.keys(matchStage).length > 0) {
+      pipeline.push({ $match: matchStage });
+      console.log('Final match stage:', JSON.stringify(matchStage, null, 2));
+    }
+
     pipeline.push({ $project: projection });
     pipeline.push({ $sort: { timestamp: 1 } });
 
