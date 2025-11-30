@@ -45,8 +45,8 @@ export const params = [
   // Temperature & Pressure
   'Oil_Pressure',
   'Boost_Pressure',
-  'Oil_Temperature',
-  'Coolant_Temperature',
+  'Oil_TemperatureC',
+  'Coolant_TemperatureC',
   'Intake_Manifold_Temperature_calculated',
 
   // Battery

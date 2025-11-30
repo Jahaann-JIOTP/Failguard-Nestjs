@@ -17,7 +17,7 @@ async function bootstrap() {
       'http://110.39.23.107:3000',
       'https://z0x4xwtp-3000.inc1.devtunnels.ms',
       'http://110.39.23.106:3053',
-      // 'https://8a67d7312c59.ngrok-free.app',
+      'https://ee601cedb676.ngrok-free.app',
     ],
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
     credentials: true,
