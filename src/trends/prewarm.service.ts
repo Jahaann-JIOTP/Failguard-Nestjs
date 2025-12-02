@@ -174,6 +174,9 @@ export class PrewarmService implements OnModuleInit, OnModuleDestroy {
           'Genset_Total_kW',
           'RPM_Stability_Index',
           'Heat_Rate',
+          'Averagr_Engine_Speed',
+          'Genset_Total_kVA',
+          'Genset_Total_kW',
         ],
       },
       {
