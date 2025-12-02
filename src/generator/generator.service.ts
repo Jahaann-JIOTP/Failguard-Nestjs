@@ -179,7 +179,7 @@ export class GeneratorService {
   private historyCollection;
 
   constructor(@Inject('MONGO_CLIENT') private readonly db: Db) {
-    this.sourceCollection = this.db.collection('navy_12S');
+    this.sourceCollection = this.db.collection('navy_12s');
     this.historyCollection = this.db.collection('generator_service_logs');
 
     this.sourceCollection.createIndex({ timestamp: 1 });
@@ -254,7 +254,7 @@ export class GeneratorService {
     const cursor = this.sourceCollection.find(
       {
         timestamp: { $gte: startISO },
-        Genset_Run_SS: { $gte: 1, $lte: 6 },
+        Genset_Run_SS: { $gte: 1 },
       },
       { projection: { timestamp: 1 } },
     );

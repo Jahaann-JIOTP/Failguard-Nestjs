@@ -928,111 +928,261 @@ export class DashboardService {
   /** -------------------
    * UPDATED: Aggregation Pipeline with Genset Filter for Range Mode
    * ------------------- */
+  // private buildAggregationPipeline(
+  //   mode: string,
+  //   projection: Record<string, number>,
+  //   start?: string,
+  //   end?: string,
+  // ): any[] {
+  //   const pipeline: any[] = [];
+  //   const matchStage: any = {};
+
+  //   console.log('=== BUILDING PIPELINE ===');
+  //   console.log('Mode:', mode);
+  //   console.log('Original dates:', { start, end });
+
+  //   if ((mode === 'historic' || mode === 'range') && start && end) {
+  //     try {
+  //       const startDate = this.validateAndFormatDate(start);
+  //       const endDate = this.validateAndFormatDate(end);
+
+  //       // ✅ Karachi offset (UTC+5)
+  //       const karachiOffsetMs = 5 * 60 * 60 * 1000;
+
+  //       // ✅ Convert local → UTC
+  //       const startUTC = new Date(startDate.getTime() - karachiOffsetMs);
+  //       const endUTC = new Date(endDate.getTime() - karachiOffsetMs);
+
+  //       // ✅ Adjust hours
+  //       if (startDate.toDateString() === endDate.toDateString()) {
+  //         startUTC.setUTCHours(0, 0, 0, 0);
+  //         endUTC.setUTCHours(23, 59, 59, 999);
+  //       } else {
+  //         endUTC.setUTCHours(23, 59, 59, 999);
+  //       }
+
+  //       // ✅ Hybrid filter for string or Date timestamps
+  //       matchStage.$expr = {
+  //         $and: [
+  //           {
+  //             $gte: [
+  //               {
+  //                 $cond: {
+  //                   if: { $eq: [{ $type: '$timestamp' }, 'string'] },
+  //                   then: { $dateFromString: { dateString: '$timestamp' } },
+  //                   else: '$timestamp',
+  //                 },
+  //               },
+  //               startUTC,
+  //             ],
+  //           },
+  //           {
+  //             $lte: [
+  //               {
+  //                 $cond: {
+  //                   if: { $eq: [{ $type: '$timestamp' }, 'string'] },
+  //                   then: { $dateFromString: { dateString: '$timestamp' } },
+  //                   else: '$timestamp',
+  //                 },
+  //               },
+  //               endUTC,
+  //             ],
+  //           },
+  //         ],
+  //       };
+
+  //       // 🔥 CRITICAL: Only apply Genset_Run_SS filter for RANGE mode
+  //       if (mode === 'range') {
+  //         matchStage.Genset_Run_SS = { $gte: 1 };
+  //       }
+
+  //       console.log(`${mode} mode - Final UTC range:`, {
+  //         startUTC: startUTC.toISOString(),
+  //         endUTC: endUTC.toISOString(),
+  //         gensetFilter: mode === 'range' ? '1-6' : 'none',
+  //       });
+  //     } catch (error) {
+  //       console.error('Date validation error:', error.message);
+  //       throw error;
+  //     }
+  //   } else if (mode === 'live') {
+  //     const sixHoursAgo = new Date();
+  //     sixHoursAgo.setHours(sixHoursAgo.getHours() - 6);
+
+  //     // ✅ Handle hybrid type for "live" mode as well
+  //     matchStage.$expr = {
+  //       $gte: [
+  //         {
+  //           $cond: {
+  //             if: { $eq: [{ $type: '$timestamp' }, 'string'] },
+  //             then: { $dateFromString: { dateString: '$timestamp' } },
+  //             else: '$timestamp',
+  //           },
+  //         },
+  //         sixHoursAgo,
+  //       ],
+  //     };
+
+  //     console.log('Live mode - Last 6 hours');
+  //   }
+
+  //   if (Object.keys(matchStage).length > 0) {
+  //     pipeline.push({ $match: matchStage });
+  //     console.log('Final match stage:', JSON.stringify(matchStage, null, 2));
+  //   }
+
+  //   pipeline.push({ $project: projection });
+  //   pipeline.push({ $sort: { timestamp: 1 } });
+
+  //   return pipeline;
+  // }
+
+  // private buildAggregationPipeline(
+  //   mode: string,
+  //   projection: Record<string, number>,
+  //   start?: string,
+  //   end?: string,
+  // ): any[] {
+  //   const pipeline: any[] = [];
+  //   const matchStage: any = {};
+
+  //   console.log('=== BUILDING PIPELINE ===');
+  //   console.log('Mode:', mode);
+  //   console.log('Original dates:', { start, end });
+
+  //   if ((mode === 'historic' || mode === 'range') && start && end) {
+  //     try {
+  //       const startDate = this.validateAndFormatDate(start);
+  //       const endDate = this.validateAndFormatDate(end);
+
+  //       // Karachi offset (UTC+5)
+  //       const karachiOffsetMs = 5 * 60 * 60 * 1000;
+
+  //       // Convert local → UTC
+  //       const startUTC = new Date(startDate.getTime() - karachiOffsetMs);
+  //       const endUTC = new Date(endDate.getTime() - karachiOffsetMs);
+
+  //       // Adjust hours
+  //       if (startDate.toDateString() === endDate.toDateString()) {
+  //         startUTC.setUTCHours(0, 0, 0, 0);
+  //         endUTC.setUTCHours(23, 59, 59, 999);
+  //       } else {
+  //         endUTC.setUTCHours(23, 59, 59, 999);
+  //       }
+
+  //       // ✅ Convert UTC to ISO string for string comparison
+  //       const startUTCStr = startUTC.toISOString();
+  //       const endUTCStr = endUTC.toISOString();
+
+  //       // Use direct string comparison instead of $dateFromString
+  //       matchStage.timestamp = { $gte: startUTCStr, $lte: endUTCStr };
+
+  //       // Apply Genset_Run_SS filter for RANGE mode
+  //       if (mode === 'range') {
+  //         matchStage.Genset_Run_SS = { $gte: 1 };
+  //       }
+
+  //       console.log(`${mode} mode - Final UTC range:`, {
+  //         startUTC: startUTCStr,
+  //         endUTC: endUTCStr,
+  //         gensetFilter: mode === 'range' ? '1-6' : 'none',
+  //       });
+  //     } catch (error) {
+  //       console.error('Date validation error:', error.message);
+  //       throw error;
+  //     }
+  //   } else if (mode === 'live') {
+  //     const sixHoursAgo = new Date();
+  //     sixHoursAgo.setHours(sixHoursAgo.getHours() - 6);
+
+  //     // Convert to ISO string for comparison
+  //     const sixHoursAgoStr = sixHoursAgo.toISOString();
+  //     matchStage.timestamp = { $gte: sixHoursAgoStr };
+
+  //     console.log('Live mode - Last 6 hours');
+  //   }
+
+  //   // Push match stage if not empty
+  //   if (Object.keys(matchStage).length > 0) {
+  //     pipeline.push({ $match: matchStage });
+  //     console.log('Final match stage:', JSON.stringify(matchStage, null, 2));
+  //   }
+
+  //   // Apply projection and sort
+  //   pipeline.push({ $project: projection });
+  //   pipeline.push({ $sort: { timestamp: 1 } });
+
+  //   return pipeline;
+  // }
+
   private buildAggregationPipeline(
-    mode: string,
+    mode: 'live' | 'range' | 'historic',
     projection: Record<string, number>,
     start?: string,
     end?: string,
+    intervalMs?: number, // optional bucket interval for historic mode
   ): any[] {
     const pipeline: any[] = [];
     const matchStage: any = {};
 
-    console.log('=== BUILDING PIPELINE ===');
-    console.log('Mode:', mode);
-    console.log('Original dates:', { start, end });
-
+    // -----------------------------
+    // 1️⃣ Build timestamp filter
+    // -----------------------------
     if ((mode === 'historic' || mode === 'range') && start && end) {
-      try {
-        const startDate = this.validateAndFormatDate(start);
-        const endDate = this.validateAndFormatDate(end);
+      const startISO = new Date(start).toISOString();
+      const endISO = new Date(end).toISOString();
 
-        // ✅ Karachi offset (UTC+5)
-        const karachiOffsetMs = 5 * 60 * 60 * 1000;
+      matchStage.timestamp = { $gte: startISO, $lte: endISO };
 
-        // ✅ Convert local → UTC
-        const startUTC = new Date(startDate.getTime() - karachiOffsetMs);
-        const endUTC = new Date(endDate.getTime() - karachiOffsetMs);
-
-        // ✅ Adjust hours
-        if (startDate.toDateString() === endDate.toDateString()) {
-          startUTC.setUTCHours(0, 0, 0, 0);
-          endUTC.setUTCHours(23, 59, 59, 999);
-        } else {
-          endUTC.setUTCHours(23, 59, 59, 999);
-        }
-
-        // ✅ Hybrid filter for string or Date timestamps
-        matchStage.$expr = {
-          $and: [
-            {
-              $gte: [
-                {
-                  $cond: {
-                    if: { $eq: [{ $type: '$timestamp' }, 'string'] },
-                    then: { $dateFromString: { dateString: '$timestamp' } },
-                    else: '$timestamp',
-                  },
-                },
-                startUTC,
-              ],
-            },
-            {
-              $lte: [
-                {
-                  $cond: {
-                    if: { $eq: [{ $type: '$timestamp' }, 'string'] },
-                    then: { $dateFromString: { dateString: '$timestamp' } },
-                    else: '$timestamp',
-                  },
-                },
-                endUTC,
-              ],
-            },
-          ],
-        };
-
-        // 🔥 CRITICAL: Only apply Genset_Run_SS filter for RANGE mode
-        if (mode === 'range') {
-          matchStage.Genset_Run_SS = { $gte: 1 };
-        }
-
-        console.log(`${mode} mode - Final UTC range:`, {
-          startUTC: startUTC.toISOString(),
-          endUTC: endUTC.toISOString(),
-          gensetFilter: mode === 'range' ? '1-6' : 'none',
-        });
-      } catch (error) {
-        console.error('Date validation error:', error.message);
-        throw error;
+      if (mode === 'range') {
+        matchStage.Genset_Run_SS = { $gte: 1 };
       }
     } else if (mode === 'live') {
-      const sixHoursAgo = new Date();
-      sixHoursAgo.setHours(sixHoursAgo.getHours() - 6);
+      const sixHoursAgo = new Date(
+        Date.now() - 6 * 60 * 60 * 1000,
+      ).toISOString();
+      matchStage.timestamp = { $gte: sixHoursAgo };
+    }
 
-      // ✅ Handle hybrid type for "live" mode as well
-      matchStage.$expr = {
-        $gte: [
-          {
-            $cond: {
-              if: { $eq: [{ $type: '$timestamp' }, 'string'] },
-              then: { $dateFromString: { dateString: '$timestamp' } },
-              else: '$timestamp',
+    pipeline.push({ $match: matchStage });
+
+    // -----------------------------
+    // 2️⃣ Projection
+    // -----------------------------
+    pipeline.push({ $project: projection });
+
+    // -----------------------------
+    // 3️⃣ Grouping (optional historic)
+    // -----------------------------
+    if (mode === 'historic' && intervalMs && intervalMs > 0) {
+      pipeline.push({
+        $group: {
+          _id: {
+            $toLong: {
+              $subtract: [
+                { $toLong: { $toDate: '$timestamp' } },
+                { $mod: [{ $toLong: { $toDate: '$timestamp' } }, intervalMs] },
+              ],
             },
           },
-          sixHoursAgo,
-        ],
-      };
+          count: { $sum: 1 },
+          ...Object.keys(projection).reduce(
+            (acc, key) => {
+              if (key !== 'timestamp') acc[key] = { $avg: `$${key}` };
+              return acc;
+            },
+            {} as Record<string, any>,
+          ),
+          Genset_Run_SS: { $last: '$Genset_Run_SS' },
+        },
+      });
 
-      console.log('Live mode - Last 6 hours');
+      // Sort by bucketed timestamp
+      pipeline.push({ $sort: { _id: 1 } });
+    } else {
+      // Sort by timestamp directly
+      pipeline.push({ $sort: { timestamp: 1 } });
     }
-
-    if (Object.keys(matchStage).length > 0) {
-      pipeline.push({ $match: matchStage });
-      console.log('Final match stage:', JSON.stringify(matchStage, null, 2));
-    }
-
-    pipeline.push({ $project: projection });
-    pipeline.push({ $sort: { timestamp: 1 } });
 
     return pipeline;
   }
