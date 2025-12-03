@@ -1403,7 +1403,7 @@ export class DashboardController {
   }
 
   // Metrics Only
-  @Get('performance-general1')
+  @Get('performance-general')
   async getDashboard6Metrics(
     @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
     @Query('start') start?: string,
@@ -1592,6 +1592,20 @@ export class DashboardController {
       end,
     );
     return charts.torqueResponseLoad || [];
+  }
+  @Get('performance-load/load-impact')
+  async getLoadImpact(
+    @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
+    @Query('start') start?: string,
+    @Query('end') end?: string,
+  ) {
+    const { charts } = await this.dashboardService.getDashboardData(
+      'dashboard6',
+      mode,
+      start,
+      end,
+    );
+    return charts.loadImpact || [];
   }
 
   /** ---------------------------------------------------

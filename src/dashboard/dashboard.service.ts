@@ -1116,74 +1116,60 @@ export class DashboardService {
   // }
 
   private buildAggregationPipeline(
-    mode: 'live' | 'range' | 'historic',
+    mode: string,
     projection: Record<string, number>,
     start?: string,
     end?: string,
-    intervalMs?: number, // optional bucket interval for historic mode
   ): any[] {
     const pipeline: any[] = [];
     const matchStage: any = {};
 
-    // -----------------------------
-    // 1️⃣ Build timestamp filter
-    // -----------------------------
-    if ((mode === 'historic' || mode === 'range') && start && end) {
-      const startISO = new Date(start).toISOString();
-      const endISO = new Date(end).toISOString();
+    console.log('=== BUILDING PIPELINE ===');
+    console.log('Mode:', mode);
+    console.log('Received dates:', { start, end });
 
-      matchStage.timestamp = { $gte: startISO, $lte: endISO };
+    if ((mode === 'historic' || mode === 'range') && start && end) {
+      let startISO = start;
+      let endISO = end;
+
+      // Agar sirf date hai (2025-11-18) to +05:00 add kar do
+      if (!start.includes('T')) {
+        startISO = `${start}T00:00:00+05:00`;
+        endISO = `${end}T23:59:59.999+05:00`;
+      }
+
+      // Agar end time 00:00:00 hai to 23:59:59 bana do
+      if (endISO.includes('T00:00:00') && !endISO.includes('23:59')) {
+        const datePart = endISO.split('T')[0];
+        endISO = `${datePart}T23:59:59.999+05:00`;
+      }
+
+      matchStage.timestamp = {
+        $gte: startISO,
+        $lte: endISO,
+      };
 
       if (mode === 'range') {
         matchStage.Genset_Run_SS = { $gte: 1 };
       }
+
+      console.log('Final +05:00 Range (Direct String Compare):');
+      console.log('  $gte →', startISO);
+      console.log('  $lte →', endISO);
     } else if (mode === 'live') {
-      const sixHoursAgo = new Date(
-        Date.now() - 6 * 60 * 60 * 1000,
-      ).toISOString();
-      matchStage.timestamp = { $gte: sixHoursAgo };
+      const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000);
+      matchStage.timestamp = { $gte: sixHoursAgo.toISOString() };
+      console.log('Live mode → Last 6 hours (UTC OK)');
     }
 
-    pipeline.push({ $match: matchStage });
+    if (Object.keys(matchStage).length > 0) {
+      pipeline.push({ $match: matchStage });
+    }
 
-    // -----------------------------
-    // 2️⃣ Projection
-    // -----------------------------
     pipeline.push({ $project: projection });
+    pipeline.push({ $sort: { timestamp: 1 } });
 
-    // -----------------------------
-    // 3️⃣ Grouping (optional historic)
-    // -----------------------------
-    if (mode === 'historic' && intervalMs && intervalMs > 0) {
-      pipeline.push({
-        $group: {
-          _id: {
-            $toLong: {
-              $subtract: [
-                { $toLong: { $toDate: '$timestamp' } },
-                { $mod: [{ $toLong: { $toDate: '$timestamp' } }, intervalMs] },
-              ],
-            },
-          },
-          count: { $sum: 1 },
-          ...Object.keys(projection).reduce(
-            (acc, key) => {
-              if (key !== 'timestamp') acc[key] = { $avg: `$${key}` };
-              return acc;
-            },
-            {} as Record<string, any>,
-          ),
-          Genset_Run_SS: { $last: '$Genset_Run_SS' },
-        },
-      });
-
-      // Sort by bucketed timestamp
-      pipeline.push({ $sort: { _id: 1 } });
-    } else {
-      // Sort by timestamp directly
-      pipeline.push({ $sort: { timestamp: 1 } });
-    }
-
+    console.log('Pipeline built successfully with +05:00 direct comparison');
     return pipeline;
   }
 
@@ -1497,7 +1483,7 @@ export class DashboardService {
     charts.frequencyRegulationEffectiveness = data.map((d) => ({
       time: d.timestamp,
       Genset_Frequency_OP_calculated: d.Genset_Frequency_OP_calculated ?? null,
-      Frequency_Deviation_Rad: d.Frequency_Deviation_Rad ?? null,
+      Frequency_Deviation_Rad: d.Averagr_Engine_Speed ?? null,
     }));
 
     return charts;
@@ -1646,6 +1632,11 @@ export class DashboardService {
       load_Percent: this.formulas.calculateLoadPercent(d) || 0,
       Percent_Engine_Torque_or_Duty_Cycle:
         d.Percent_Engine_Torque_or_Duty_Cycle ?? null,
+    }));
+    charts.loadImpact = data.map((d) => ({
+      time: d.timestamp,
+      load_Percent: this.formulas.calculateLoadPercent(d) || 0,
+      Average_Engine_Speed: d.Averagr_Engine_Speed ?? null,
     }));
 
     charts.averageEngineSpeed = data.map((d) => ({

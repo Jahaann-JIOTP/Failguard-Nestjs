@@ -271,9 +271,14 @@ export class FormulasService {
     return +(value - coolant).toFixed(2);
   }
 
+  // calculateCoolingMarginC(doc: any): number {
+  //   const coolant = this.convertCoolantToCelsius(doc);
+  //   return +(100 - (coolant - 32) * 0.5).toFixed(2);
+  // }
+
   calculateCoolingMarginC(doc: any): number {
-    const coolant = doc.Coolant_Temperature ?? 0;
-    return +(100 - (coolant - 32) * 0.5).toFixed(2);
+    const coolant = this.convertCoolantToCelsius(doc);
+    return +(102 - coolant).toFixed(2);
   }
 
   calculateThermalStressF(doc: any): number {
@@ -291,25 +296,25 @@ export class FormulasService {
 
   // Convert Coolant Temperature to Celsius
   convertCoolantToCelsius(doc: any): number {
-    const coolantF = doc.Coolant_Temperature ?? 0; // Default 0 if missing
+    const coolantF = doc.Coolant_Temperature;
     return this.fahrenheitToCelsius(coolantF);
   }
   convertIntakeToCelsius(doc: any): number {
-    const intakeF = doc.Intake_Manifold_Temperature_calculated ?? 0; // Default 0 if missing
+    const intakeF = doc.Intake_Manifold_Temperature_calculated;
     return this.fahrenheitToCelsius(intakeF);
   }
 
   // Convert Oil Temperature to Celsius
   convertOilTempToCelsius(doc: any): number {
-    const oilF = doc.Oil_Temperature ?? 0; // Default 0 if missing
+    const oilF = doc.Oil_Temperature;
     return this.fahrenheitToCelsius(oilF);
   }
 
   calculateThermalStressC(doc: any): number {
-    const coolant = doc.Coolant_Temperature ?? 0;
-    const min = 90;
-    const max = 100;
-    const stress = (coolant - min) / (max - min);
+    const coolant = this.convertCoolantToCelsius(doc) ?? 0;
+    const tnom = 90;
+    const tsafe = 102;
+    const stress = (coolant - tnom) / (tsafe - tnom);
     return +stress.toFixed(2);
   }
 
@@ -322,10 +327,10 @@ export class FormulasService {
   }
 
   calculateOTSRC(doc: any): number {
-    const temp = doc.Oil_Temperature ?? 0;
-    const min = 93.3;
-    const max = 125;
-    const OTSRC = (max - temp) / (max - min);
+    const temp = this.convertOilTempToCelsius(doc) ?? 0;
+    const tnom = 90;
+    const maxsafe = 125;
+    const OTSRC = (maxsafe - temp) / (maxsafe - tnom);
     return +OTSRC.toFixed(2);
   }
 
@@ -348,16 +353,16 @@ export class FormulasService {
 
   calculateLubricationRiskIndex(doc: any): number {
     const oilPressure = doc.Oil_Pressure ?? 0;
-    const oilTemp = doc.Oil_Temperature ?? 0;
+    const oilTemp = this.convertOilTempToCelsius(doc) ?? 0;
 
     // Constants (from your notebook)
     const Pmin = 30; // Minimum safe oil pressure
-    const Tmax = 257; // Maximum safe oil temperature
-    const Tmin = 200; // Minimum safe oil temperature
+    const Tmax = 125; // Maximum safe oil temperature
+    const Tnom = 90; // Minimum safe oil temperature
 
     const pressureFactor = Math.min(1, oilPressure / Pmin);
 
-    const temperatureFactor = Math.max(0, (Tmax - oilTemp) / (Tmax - Tmin));
+    const temperatureFactor = Math.max(0, (Tmax - oilTemp) / (Tmax - Tnom));
 
     return +(pressureFactor * temperatureFactor).toFixed(2);
   }
