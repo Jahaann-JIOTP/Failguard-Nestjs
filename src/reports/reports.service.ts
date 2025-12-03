@@ -253,25 +253,17 @@ export class ReportsService {
   //   if (!startDate || !endDate)
   //     throw new Error('startDate and endDate are required');
 
-  //   const start = new Date(startDate);
-  //   const end = new Date(endDate);
-
+  //   // Aggregation pipeline
   //   const pipeline = [
   //     {
   //       $match: {
-  //         timestamp: { $gte: start, $lte: end },
-  //         Genset_Run_SS: { $gte: 1 },
+  //         timestamp: { $gte: startDate, $lte: endDate },
+  //         Genset_Run_SS: { $gte: 1 }, // Only genset ON
   //       },
   //     },
   //     {
   //       $addFields: {
-  //         date: {
-  //           $dateToString: {
-  //             format: '%Y-%m-%d',
-  //             date: '$timestamp',
-  //             timezone: '+05:00',
-  //           },
-  //         },
+  //         date: { $substr: ['$timestamp', 0, 10] }, // "YYYY-MM-DD" for grouping
   //         energyKWH: { $multiply: ['$Genset_Total_kW', 0.000833] },
   //         Load_Percent_Calc: '$Load_Percent',
   //       },
@@ -300,34 +292,31 @@ export class ReportsService {
   //   let cumulativeProduction = 0;
 
   //   const rows = aggregated.map((day) => {
-  //     const fuelConsumedLiters = +(
-  //       (day.fuelMax - day.fuelMin) *
-  //       3.7854
-  //     ).toFixed(2);
+  //     const fuelMin = day.fuelMin ?? 0;
+  //     const fuelMax = day.fuelMax ?? 0;
+  //     const engineMin = day.engineMin ?? 0;
+  //     const engineMax = day.engineMax ?? 0;
+  //     const totalProduction = day.totalProduction ?? 0;
+  //     const avgLoad = day.avgLoad ?? 0;
 
-  //     const runHours = +(day.engineMax - day.engineMin).toFixed(2);
-
+  //     const fuelConsumedLiters = +((fuelMax - fuelMin) * 3.7854).toFixed(2);
+  //     const runHours = +(engineMax - engineMin).toFixed(2);
   //     const cost = +(fuelConsumedLiters * fuelCostPerLitre).toFixed(2);
-
-  //     const costPerUnit = day.totalProduction
-  //       ? +(cost / day.totalProduction).toFixed(2)
+  //     const costPerUnit = totalProduction
+  //       ? +(cost / totalProduction).toFixed(2)
   //       : 0;
 
-  //     const formatTime = (d: Date) =>
-  //       `${new Date(d).getHours().toString().padStart(2, '0')}:${new Date(d)
-  //         .getMinutes()
-  //         .toString()
-  //         .padStart(2, '0')}`;
+  //     const formatTime = (ts: string) => ts?.slice(11, 16) ?? '00:00';
 
-  //     cumulativeProduction += day.totalProduction;
+  //     cumulativeProduction += totalProduction;
 
   //     return {
   //       Date: day._id,
   //       Duration: `${formatTime(day.startTime)}–${formatTime(day.endTime)}`,
   //       Run_Hours: runHours,
   //       Fuel_Consumed: `${fuelConsumedLiters} Ltrs`,
-  //       Production: `${day.totalProduction.toFixed(2)} kWh`,
-  //       Load_Percent: +day.avgLoad.toFixed(2),
+  //       Production: `${totalProduction.toFixed(2)} kWh`,
+  //       Load_Percent: +avgLoad.toFixed(2),
   //       Cost: cost,
   //       CostPerUnit: costPerUnit,
   //       TotalCost: cost,
@@ -345,22 +334,17 @@ export class ReportsService {
   }) {
     const { startDate, endDate, fuelCostPerLitre } = payload;
 
-    if (!startDate || !endDate)
-      throw new Error('startDate and endDate are required');
-
-    // Aggregation pipeline
     const pipeline = [
       {
         $match: {
           timestamp: { $gte: startDate, $lte: endDate },
-          Genset_Run_SS: { $gte: 1 }, // Only genset ON
+          Genset_Run_SS: { $gte: 1 },
         },
       },
       {
         $addFields: {
-          date: { $substr: ['$timestamp', 0, 10] }, // "YYYY-MM-DD" for grouping
+          date: { $substr: ['$timestamp', 0, 10] },
           energyKWH: { $multiply: ['$Genset_Total_kW', 0.000833] },
-          Load_Percent_Calc: '$Load_Percent',
         },
       },
       {
@@ -368,42 +352,59 @@ export class ReportsService {
           _id: '$date',
           startTime: { $min: '$timestamp' },
           endTime: { $max: '$timestamp' },
+
           fuelMin: { $min: '$Total_Fuel_Consumption_calculated' },
           fuelMax: { $max: '$Total_Fuel_Consumption_calculated' },
+
           engineMin: { $min: '$Engine_Running_Time_calculated' },
           engineMax: { $max: '$Engine_Running_Time_calculated' },
+
           totalProduction: { $sum: '$energyKWH' },
-          avgLoad: { $avg: '$Load_Percent_Calc' },
+
+          // Load % ke liye raw fields push ho rahi hain
+          totalKWs: { $push: '$Genset_Total_kW' },
+          ratings: { $push: '$Genset_Application_kW_Rating_PC2X' },
         },
       },
       { $sort: { _id: 1 } },
     ];
 
-    const aggregated = await this.collection.aggregate(pipeline).toArray();
-
-    if (!aggregated.length)
-      return [{ message: 'No data found for selected dates' }];
+    const aggregated = await this.collection
+      .aggregate(pipeline, { allowDiskUse: true })
+      .toArray();
 
     let cumulativeProduction = 0;
 
     const rows = aggregated.map((day) => {
-      const fuelMin = day.fuelMin ?? 0;
-      const fuelMax = day.fuelMax ?? 0;
-      const engineMin = day.engineMin ?? 0;
-      const engineMax = day.engineMax ?? 0;
-      const totalProduction = day.totalProduction ?? 0;
-      const avgLoad = day.avgLoad ?? 0;
+      const fuelMin = Number(day.fuelMin) || 0;
+      const fuelMax = Number(day.fuelMax) || 0;
+      const engineMin = Number(day.engineMin) || 0;
+      const engineMax = Number(day.engineMax) || 0;
+
+      const totalProduction = Number(day.totalProduction) || 0;
 
       const fuelConsumedLiters = +((fuelMax - fuelMin) * 3.7854).toFixed(2);
       const runHours = +(engineMax - engineMin).toFixed(2);
       const cost = +(fuelConsumedLiters * fuelCostPerLitre).toFixed(2);
-      const costPerUnit = totalProduction
-        ? +(cost / totalProduction).toFixed(2)
-        : 0;
-
-      const formatTime = (ts: string) => ts?.slice(11, 16) ?? '00:00';
 
       cumulativeProduction += totalProduction;
+
+      // ---------------- Load % Calculation (Correct Version) -----------------
+
+      let avgLoadPercent = 0;
+
+      if (day.totalKWs?.length) {
+        const loads = day.totalKWs.map((kW: number, i: number) => {
+          const rating = day.ratings[i];
+          return rating ? (kW / rating) * 100 : 0;
+        });
+
+        avgLoadPercent = loads.reduce((a, b) => a + b, 0) / loads.length;
+      }
+
+      // -----------------------------------------------------------------------
+
+      const formatTime = (ts: string) => ts?.slice(11, 16) ?? '00:00';
 
       return {
         Date: day._id,
@@ -411,9 +412,9 @@ export class ReportsService {
         Run_Hours: runHours,
         Fuel_Consumed: `${fuelConsumedLiters} Ltrs`,
         Production: `${totalProduction.toFixed(2)} kWh`,
-        Load_Percent: +avgLoad.toFixed(2),
+        Load_Percent: +avgLoadPercent.toFixed(2), // ✔ Real Load %
         Cost: cost,
-        CostPerUnit: costPerUnit,
+        CostPerUnit: totalProduction ? +(cost / totalProduction).toFixed(2) : 0,
         TotalCost: cost,
         CumulativeProduction: cumulativeProduction.toFixed(2),
       };
