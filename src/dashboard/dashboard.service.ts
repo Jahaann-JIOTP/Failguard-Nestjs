@@ -224,183 +224,374 @@ export class DashboardService {
   /** -------------------
    * UPDATED: Core Data Fetching Logic with consistent running hours
    * ------------------- */
+  // private async fetchDashboardData(
+  //   mode: 'live' | 'historic' | 'range',
+  //   config: DashboardConfig,
+  //   start?: string,
+  //   end?: string,
+  // ) {
+  //   const pipeline = this.buildAggregationPipeline(
+  //     mode,
+  //     config.projection,
+  //     start,
+  //     end,
+  //   );
+
+  //   console.log('Executing pipeline for mode:', mode);
+  //   console.log('Date range:', { start, end });
+
+  //   const data = await this.collection.aggregate(pipeline).toArray();
+
+  //   console.log(
+  //     `Fetched ${data.length} records from database for mode: ${mode}`,
+  //   );
+
+  //   this.logDataValidation(data, mode, config.projection);
+
+  //   if (!data.length) {
+  //     console.log('No data found for query:', { mode, start, end });
+  //     return {
+  //       metrics: mode === 'range' ? { onDurationMinutes: 0 } : {},
+  //       charts: {},
+  //     };
+  //   }
+
+  //   let formattedData;
+  //   if (mode === 'historic') {
+  //     formattedData = data.map((doc) => ({
+  //       ...this.fillMissingFieldsWithZero(doc, config.projection),
+  //       timestamp: this.formatDateTimestamp(doc.timestamp),
+  //     }));
+  //   } else {
+  //     formattedData = data.map((doc) => ({
+  //       ...doc,
+  //       timestamp: this.formatDateTimestamp(doc.timestamp),
+  //     }));
+  //   }
+
+  //   const latest = formattedData[formattedData.length - 1];
+  //   const metricsData = mode === 'live' ? [] : formattedData;
+  //   let metrics = config.metricsMapper(latest, metricsData, mode);
+
+  //   // ✅ FIXED: Use consistent running hours calculation
+  //   let runningHoursDecimal;
+  //   let runningHoursWithMinutes;
+
+  //   if (mode === 'live') {
+  //     runningHoursDecimal = latest.Engine_Running_Time_calculated || 0;
+  //     runningHoursWithMinutes = this.convertToHoursMinutes(runningHoursDecimal);
+  //     console.log(
+  //       `Live mode - Running hours: ${runningHoursDecimal} = ${runningHoursWithMinutes.totalHours}`,
+  //     );
+  //   } else {
+  //     // For historic/range mode, calculate from data
+  //     runningHoursDecimal = this.calculateRunningHours(formattedData);
+  //     runningHoursWithMinutes = this.convertToHoursMinutes(runningHoursDecimal);
+  //     console.log(
+  //       `Historic/Range mode - Running hours: ${runningHoursDecimal} = ${runningHoursWithMinutes.totalHours}`,
+  //     );
+  //   }
+
+  //   // ✅ UPDATED: Total Fuel Consumed calculation (MAX - MIN) and convert to liters
+  //   let totalFuelConsumed;
+  //   let totalFuelConsumedLiters;
+  //   if (mode === 'live') {
+  //     totalFuelConsumed = latest.Total_Fuel_Consumption_calculated || 0;
+  //     totalFuelConsumedLiters = totalFuelConsumed * 3.7854;
+  //     console.log(
+  //       `Live mode - Total Fuel Consumed from latest: ${totalFuelConsumed} gallons = ${totalFuelConsumedLiters} liters`,
+  //     );
+  //   } else {
+  //     totalFuelConsumed = this.calculateTotalFuelConsumed(formattedData);
+  //     totalFuelConsumedLiters = totalFuelConsumed * 3.7854;
+  //   }
+
+  //   // ✅ UPDATED: Fuel Consumed Current Run calculation
+  //   let fuelConsumedCurrentRun;
+  //   let fuelConsumedCurrentRunLiters;
+  //   if (mode === 'live') {
+  //     fuelConsumedCurrentRun = latest.Total_Fuel_Consumption_calculated || 0;
+  //     fuelConsumedCurrentRunLiters = fuelConsumedCurrentRun * 3.7854;
+  //     console.log(
+  //       `Live mode - Fuel Consumed Current Run from latest: ${fuelConsumedCurrentRun} gallons = ${fuelConsumedCurrentRunLiters} liters`,
+  //     );
+  //   } else {
+  //     fuelConsumedCurrentRun =
+  //       this.calculateFuelConsumedCurrentRun(formattedData);
+  //     fuelConsumedCurrentRunLiters = fuelConsumedCurrentRun * 3.7854;
+  //   }
+
+  //   // ✅ FIXED: Use consistent running hours values
+  //   metrics = {
+  //     ...metrics,
+  //     runningHours: +runningHoursDecimal.toFixed(2), // Keep the decimal value
+  //     runningHoursH: runningHoursWithMinutes.hours,
+  //     runningHoursM: runningHoursWithMinutes.minutes,
+  //     totalHours: runningHoursWithMinutes.totalHours, // Use the formatted "H:MM" value
+  //     fuelConsumed: +totalFuelConsumedLiters.toFixed(2),
+  //     fuelConsumedCurrentRun: +fuelConsumedCurrentRunLiters.toFixed(2),
+  //   };
+
+  //   if (mode === 'range') {
+  //     metrics = {
+  //       ...metrics,
+  //       onDurationMinutes: this.calculateOnDurationDate(formattedData),
+  //     };
+  //   }
+
+  //   // ✅ UPDATED: Remove zero values but keep important metrics
+  //   metrics = this.removeZeroValuesButKeepImportant(metrics);
+
+  //   return {
+  //     metrics,
+  //     charts: config.chartsMapper(formattedData),
+  //   };
+  // }
+
+
   private async fetchDashboardData(
-    mode: 'live' | 'historic' | 'range',
-    config: DashboardConfig,
-    start?: string,
-    end?: string,
-  ) {
-    const pipeline = this.buildAggregationPipeline(
-      mode,
-      config.projection,
-      start,
-      end,
-    );
+  mode: 'live' | 'historic' | 'range',
+  config: DashboardConfig,
+  start?: string,
+  end?: string,
+) {
+  const pipeline = this.buildAggregationPipeline(
+    mode,
+    config.projection,
+    start,
+    end,
+  );
 
-    console.log('Executing pipeline for mode:', mode);
-    console.log('Date range:', { start, end });
+  console.log('Executing pipeline for mode:', mode);
+  console.log('Date range:', { start, end });
 
-    const data = await this.collection.aggregate(pipeline).toArray();
+  const data = await this.collection.aggregate(pipeline).toArray();
 
-    console.log(
-      `Fetched ${data.length} records from database for mode: ${mode}`,
-    );
+  console.log(
+    `Fetched ${data.length} records from database for mode: ${mode}`,
+  );
 
-    this.logDataValidation(data, mode, config.projection);
+  this.logDataValidation(data, mode, config.projection);
 
-    if (!data.length) {
-      console.log('No data found for query:', { mode, start, end });
-      return {
-        metrics: mode === 'range' ? { onDurationMinutes: 0 } : {},
-        charts: {},
-      };
-    }
-
-    let formattedData;
-    if (mode === 'historic') {
-      formattedData = data.map((doc) => ({
-        ...this.fillMissingFieldsWithZero(doc, config.projection),
-        timestamp: this.formatDateTimestamp(doc.timestamp),
-      }));
-    } else {
-      formattedData = data.map((doc) => ({
-        ...doc,
-        timestamp: this.formatDateTimestamp(doc.timestamp),
-      }));
-    }
-
-    const latest = formattedData[formattedData.length - 1];
-    const metricsData = mode === 'live' ? [] : formattedData;
-    let metrics = config.metricsMapper(latest, metricsData, mode);
-
-    // ✅ FIXED: Use consistent running hours calculation
-    let runningHoursDecimal;
-    let runningHoursWithMinutes;
-
-    if (mode === 'live') {
-      runningHoursDecimal = latest.Engine_Running_Time_calculated || 0;
-      runningHoursWithMinutes = this.convertToHoursMinutes(runningHoursDecimal);
-      console.log(
-        `Live mode - Running hours: ${runningHoursDecimal} = ${runningHoursWithMinutes.totalHours}`,
-      );
-    } else {
-      // For historic/range mode, calculate from data
-      runningHoursDecimal = this.calculateRunningHours(formattedData);
-      runningHoursWithMinutes = this.convertToHoursMinutes(runningHoursDecimal);
-      console.log(
-        `Historic/Range mode - Running hours: ${runningHoursDecimal} = ${runningHoursWithMinutes.totalHours}`,
-      );
-    }
-
-    // ✅ UPDATED: Total Fuel Consumed calculation (MAX - MIN) and convert to liters
-    let totalFuelConsumed;
-    let totalFuelConsumedLiters;
-    if (mode === 'live') {
-      totalFuelConsumed = latest.Total_Fuel_Consumption_calculated || 0;
-      totalFuelConsumedLiters = totalFuelConsumed * 3.7854;
-      console.log(
-        `Live mode - Total Fuel Consumed from latest: ${totalFuelConsumed} gallons = ${totalFuelConsumedLiters} liters`,
-      );
-    } else {
-      totalFuelConsumed = this.calculateTotalFuelConsumed(formattedData);
-      totalFuelConsumedLiters = totalFuelConsumed * 3.7854;
-    }
-
-    // ✅ UPDATED: Fuel Consumed Current Run calculation
-    let fuelConsumedCurrentRun;
-    let fuelConsumedCurrentRunLiters;
-    if (mode === 'live') {
-      fuelConsumedCurrentRun = latest.Total_Fuel_Consumption_calculated || 0;
-      fuelConsumedCurrentRunLiters = fuelConsumedCurrentRun * 3.7854;
-      console.log(
-        `Live mode - Fuel Consumed Current Run from latest: ${fuelConsumedCurrentRun} gallons = ${fuelConsumedCurrentRunLiters} liters`,
-      );
-    } else {
-      fuelConsumedCurrentRun =
-        this.calculateFuelConsumedCurrentRun(formattedData);
-      fuelConsumedCurrentRunLiters = fuelConsumedCurrentRun * 3.7854;
-    }
-
-    // ✅ FIXED: Use consistent running hours values
-    metrics = {
-      ...metrics,
-      runningHours: +runningHoursDecimal.toFixed(2), // Keep the decimal value
-      runningHoursH: runningHoursWithMinutes.hours,
-      runningHoursM: runningHoursWithMinutes.minutes,
-      totalHours: runningHoursWithMinutes.totalHours, // Use the formatted "H:MM" value
-      fuelConsumed: +totalFuelConsumedLiters.toFixed(2),
-      fuelConsumedCurrentRun: +fuelConsumedCurrentRunLiters.toFixed(2),
-    };
-
-    if (mode === 'range') {
-      metrics = {
-        ...metrics,
-        onDurationMinutes: this.calculateOnDurationDate(formattedData),
-      };
-    }
-
-    // ✅ UPDATED: Remove zero values but keep important metrics
-    metrics = this.removeZeroValuesButKeepImportant(metrics);
-
+  if (!data.length) {
+    console.log('No data found for query:', { mode, start, end });
     return {
-      metrics,
-      charts: config.chartsMapper(formattedData),
+      metrics: mode === 'range' ? { onDurationMinutes: 0 } : {},
+      charts: {},
     };
   }
 
-  /** -------------------
-   * NEW: Calculate Fuel Consumed Current Run (last - first)
-   * ------------------- */
+  let formattedData;
+  if (mode === 'historic') {
+    formattedData = data.map((doc) => ({
+      ...this.fillMissingFieldsWithZero(doc, config.projection),
+      timestamp: this.formatDateTimestamp(doc.timestamp),
+    }));
+  } else {
+    formattedData = data.map((doc) => ({
+      ...doc,
+      timestamp: this.formatDateTimestamp(doc.timestamp),
+    }));
+  }
+
+  const latest = formattedData[formattedData.length - 1];
+  const metricsData = mode === 'live' ? [] : formattedData;
+  let metrics = config.metricsMapper(latest, metricsData, mode);
+
+  // ✅ FIXED: Use consistent running hours calculation
+  let runningHoursDecimal;
+  let runningHoursWithMinutes;
+
+  if (mode === 'live') {
+    runningHoursDecimal = latest.Engine_Running_Time_calculated || 0;
+    runningHoursWithMinutes = this.convertToHoursMinutes(runningHoursDecimal);
+    console.log(
+      `Live mode - Running hours: ${runningHoursDecimal} = ${runningHoursWithMinutes.totalHours}`,
+    );
+  } else {
+    // For historic/range mode, calculate from data
+    runningHoursDecimal = this.calculateRunningHours(formattedData);
+    runningHoursWithMinutes = this.convertToHoursMinutes(runningHoursDecimal);
+    console.log(
+      `Historic/Range mode - Running hours: ${runningHoursDecimal} = ${runningHoursWithMinutes.totalHours}`,
+    );
+  }
+
+  // ✅ UPDATED: Total Fuel Consumed calculation (MAX - MIN) and convert to liters
+  let totalFuelConsumed;
+  let totalFuelConsumedLiters;
+  if (mode === 'live') {
+    totalFuelConsumed = latest.Total_Fuel_Consumption_calculated || 0;
+    totalFuelConsumedLiters = totalFuelConsumed * 3.7854;
+    console.log(
+      `Live mode - Total Fuel Consumed from latest: ${totalFuelConsumed} gallons = ${totalFuelConsumedLiters} liters`,
+    );
+  } else {
+    totalFuelConsumed = this.calculateTotalFuelConsumed(formattedData);
+    totalFuelConsumedLiters = totalFuelConsumed * 3.7854;
+    console.log(
+      `Historic/Range mode - Total Fuel Consumed: ${totalFuelConsumed.toFixed(2)} gallons = ${totalFuelConsumedLiters.toFixed(2)} liters`,
+    );
+  }
+
+  // ✅ UPDATED: Fuel Consumed Current Run calculation - PASS END DATE
+  let fuelConsumedCurrentRun;
+  let fuelConsumedCurrentRunLiters;
+  if (mode === 'live') {
+    fuelConsumedCurrentRun = latest.Total_Fuel_Consumption_calculated || 0;
+    fuelConsumedCurrentRunLiters = fuelConsumedCurrentRun * 3.7854;
+    console.log(
+      `Live mode - Fuel Consumed Current Run from latest: ${fuelConsumedCurrentRun} gallons = ${fuelConsumedCurrentRunLiters} liters`,
+    );
+  } else {
+    // ✅ PASS END DATE TO CALCULATION
+    fuelConsumedCurrentRun = this.calculateFuelConsumedCurrentRun(formattedData, end);
+    fuelConsumedCurrentRunLiters = fuelConsumedCurrentRun * 3.7854;
+    
+    console.log('=== FUEL CONSUMPTION SUMMARY ===');
+    console.log(`📅 Date range: ${start} to ${end}`);
+    console.log(`⛽ Total Fuel Consumed (MAX-MIN): ${totalFuelConsumed.toFixed(2)} gallons = ${totalFuelConsumedLiters.toFixed(2)} liters`);
+    console.log(`⛽ Fuel Consumed Current Run (END DATE): ${fuelConsumedCurrentRun.toFixed(2)} gallons = ${fuelConsumedCurrentRunLiters.toFixed(2)} liters`);
+  }
+
+  // ✅ FIXED: Use consistent running hours values
+  metrics = {
+    ...metrics,
+    runningHours: +runningHoursDecimal.toFixed(2), // Keep the decimal value
+    runningHoursH: runningHoursWithMinutes.hours,
+    runningHoursM: runningHoursWithMinutes.minutes,
+    totalHours: runningHoursWithMinutes.totalHours, // Use the formatted "H:MM" value
+    fuelConsumed: +totalFuelConsumedLiters.toFixed(2),
+    fuelConsumedCurrentRun: +fuelConsumedCurrentRunLiters.toFixed(2),
+  };
+
+  if (mode === 'range') {
+    metrics = {
+      ...metrics,
+      onDurationMinutes: this.calculateOnDurationDate(formattedData),
+    };
+  }
+
+  // ✅ UPDATED: Remove zero values but keep important metrics
+  metrics = this.removeZeroValuesButKeepImportant(metrics);
+
+  return {
+    metrics,
+    charts: config.chartsMapper(formattedData),
+  };
+}
+
   /** -------------------
    * UPDATED: Fuel Consumed Current Run calculation using only END DATE range
    * ------------------- */
-  private calculateFuelConsumedCurrentRun(data: any[]): number {
-    if (data.length === 0) return 0;
+  // private calculateFuelConsumedCurrentRun(data: any[]): number {
+  //   if (data.length === 0) return 0;
 
-    // console.log(
-    //   '=== DEBUG: Fuel Consumed Current Run Calculation (END DATE ONLY) ===',
-    // );
-    // console.log(`Total records: ${data.length}`);
+  //   // console.log(
+  //   //   '=== DEBUG: Fuel Consumed Current Run Calculation (END DATE ONLY) ===',
+  //   // );
+  //   // console.log(`Total records: ${data.length}`);
 
-    const fuelField = 'Total_Fuel_Consumption_calculated';
-    const firstRecord = data[0];
+  //   const fuelField = 'Total_Fuel_Consumption_calculated';
+  //   const firstRecord = data[0];
 
-    if (!(fuelField in firstRecord)) {
-      // console.log(`❌ Field ${fuelField} not found in data`);
+  //   if (!(fuelField in firstRecord)) {
+  //     // console.log(`❌ Field ${fuelField} not found in data`);
+  //     return 0;
+  //   }
+
+  //   // console.log(`✅ Using fuel field for current run: ${fuelField}`);
+
+  //   // ✅ CHANGED: Always use first and last of the current data range (end date)
+  //   const firstValue = data[0][fuelField];
+  //   const lastValue = data[data.length - 1][fuelField];
+
+  //   // console.log(
+  //   //   `END DATE RANGE - First value: ${firstValue}, Last value: ${lastValue}`,
+  //   // );
+
+  //   // Validate values
+  //   if (
+  //     firstValue === undefined ||
+  //     firstValue === null ||
+  //     isNaN(firstValue) ||
+  //     lastValue === undefined ||
+  //     lastValue === null ||
+  //     isNaN(lastValue)
+  //   ) {
+  //     // console.log('❌ Invalid fuel values found');
+  //     return 0;
+  //   }
+
+  //   const fuelConsumedCurrentRun = lastValue - firstValue;
+
+  //   // console.log(
+  //   //   `Fuel Consumed Current Run (END DATE) - LAST=${lastValue}, FIRST=${firstValue}, DIFF=${fuelConsumedCurrentRun}`,
+  //   // );
+
+  //   return Math.max(0, +fuelConsumedCurrentRun.toFixed(2));
+  // }
+
+  /** -------------------
+ * UPDATED: Fuel Consumed Current Run calculation - ONLY END DATE
+ * ------------------- */
+private calculateFuelConsumedCurrentRun(data: any[], endDate?: string): number {
+  console.log('=== CALCULATE FUEL CONSUMED CURRENT RUN ===');
+  
+  if (data.length === 0) return 0;
+
+  const fuelField = 'Total_Fuel_Consumption_calculated';
+  
+  if (!(fuelField in data[0])) return 0;
+
+  let fuelConsumedCurrentRun = 0;
+
+  if (endDate) {
+    console.log('🎯 MODE: Using END DATE ONLY calculation');
+    
+    // ✅ Extract day from endDate (e.g., "11" from 2025-11-11)
+    const dayMatch = endDate.match(/-\d{2}T/);
+    const targetDay = dayMatch ? dayMatch[0].replace(/-|T/g, '') : '11';
+    
+    console.log(`Looking for day: ${targetDay} in timestamps`);
+    
+    // ✅ Filter data for the target day (check formatted timestamp)
+    const endDateData = data.filter(item => {
+      if (!item.timestamp) return false;
+      const formattedTs = String(item.timestamp);
+      // Check for day in formatted timestamp (e.g., "Nov 11" or ", 11,")
+      return formattedTs.includes(` ${targetDay},`) || 
+             formattedTs.includes(` ${targetDay} `) ||
+             formattedTs.includes(`, ${targetDay}:`);
+    });
+    
+    console.log(`📊 End date records found: ${endDateData.length}`);
+    
+    if (endDateData.length >= 2) {
+      const firstValue = endDateData[0][fuelField];
+      const lastValue = endDateData[endDateData.length - 1][fuelField];
+      
+      fuelConsumedCurrentRun = Math.max(0, lastValue - firstValue);
+      console.log(`✅ END DATE Calculation: ${lastValue} - ${firstValue} = ${fuelConsumedCurrentRun}`);
+    } else if (endDateData.length === 1) {
+      fuelConsumedCurrentRun = 0; // Can't calculate difference with one record
+      console.log(`📌 Single record for end date`);
+    } else {
+      console.log('⚠️ No end date records found, returning 0');
       return 0;
     }
-
-    // console.log(`✅ Using fuel field for current run: ${fuelField}`);
-
-    // ✅ CHANGED: Always use first and last of the current data range (end date)
+  } else {
+    // Live mode - normal calculation
     const firstValue = data[0][fuelField];
     const lastValue = data[data.length - 1][fuelField];
-
-    // console.log(
-    //   `END DATE RANGE - First value: ${firstValue}, Last value: ${lastValue}`,
-    // );
-
-    // Validate values
-    if (
-      firstValue === undefined ||
-      firstValue === null ||
-      isNaN(firstValue) ||
-      lastValue === undefined ||
-      lastValue === null ||
-      isNaN(lastValue)
-    ) {
-      // console.log('❌ Invalid fuel values found');
-      return 0;
-    }
-
-    const fuelConsumedCurrentRun = lastValue - firstValue;
-
-    // console.log(
-    //   `Fuel Consumed Current Run (END DATE) - LAST=${lastValue}, FIRST=${firstValue}, DIFF=${fuelConsumedCurrentRun}`,
-    // );
-
-    return Math.max(0, +fuelConsumedCurrentRun.toFixed(2));
+    fuelConsumedCurrentRun = Math.max(0, lastValue - firstValue);
+    console.log(`🔢 Normal Calculation: ${lastValue} - ${firstValue} = ${fuelConsumedCurrentRun}`);
   }
+
+  console.log(`🏁 FINAL Fuel Current Run: ${fuelConsumedCurrentRun.toFixed(2)} gallons`);
+  
+  return +fuelConsumedCurrentRun.toFixed(2);
+}
 
   /** -------------------
    * NEW: Calculate Total Fuel Consumed (MAX - MIN)
@@ -925,117 +1116,7 @@ export class DashboardService {
     return localDate;
   }
 
-  /** -------------------
-   * UPDATED: Aggregation Pipeline with Genset Filter for Range Mode
-   * ------------------- */
-  // private buildAggregationPipeline(
-  //   mode: string,
-  //   projection: Record<string, number>,
-  //   start?: string,
-  //   end?: string,
-  // ): any[] {
-  //   const pipeline: any[] = [];
-  //   const matchStage: any = {};
-
-  //   console.log('=== BUILDING PIPELINE ===');
-  //   console.log('Mode:', mode);
-  //   console.log('Original dates:', { start, end });
-
-  //   if ((mode === 'historic' || mode === 'range') && start && end) {
-  //     try {
-  //       const startDate = this.validateAndFormatDate(start);
-  //       const endDate = this.validateAndFormatDate(end);
-
-  //       // ✅ Karachi offset (UTC+5)
-  //       const karachiOffsetMs = 5 * 60 * 60 * 1000;
-
-  //       // ✅ Convert local → UTC
-  //       const startUTC = new Date(startDate.getTime() - karachiOffsetMs);
-  //       const endUTC = new Date(endDate.getTime() - karachiOffsetMs);
-
-  //       // ✅ Adjust hours
-  //       if (startDate.toDateString() === endDate.toDateString()) {
-  //         startUTC.setUTCHours(0, 0, 0, 0);
-  //         endUTC.setUTCHours(23, 59, 59, 999);
-  //       } else {
-  //         endUTC.setUTCHours(23, 59, 59, 999);
-  //       }
-
-  //       // ✅ Hybrid filter for string or Date timestamps
-  //       matchStage.$expr = {
-  //         $and: [
-  //           {
-  //             $gte: [
-  //               {
-  //                 $cond: {
-  //                   if: { $eq: [{ $type: '$timestamp' }, 'string'] },
-  //                   then: { $dateFromString: { dateString: '$timestamp' } },
-  //                   else: '$timestamp',
-  //                 },
-  //               },
-  //               startUTC,
-  //             ],
-  //           },
-  //           {
-  //             $lte: [
-  //               {
-  //                 $cond: {
-  //                   if: { $eq: [{ $type: '$timestamp' }, 'string'] },
-  //                   then: { $dateFromString: { dateString: '$timestamp' } },
-  //                   else: '$timestamp',
-  //                 },
-  //               },
-  //               endUTC,
-  //             ],
-  //           },
-  //         ],
-  //       };
-
-  //       // 🔥 CRITICAL: Only apply Genset_Run_SS filter for RANGE mode
-  //       if (mode === 'range') {
-  //         matchStage.Genset_Run_SS = { $gte: 1 };
-  //       }
-
-  //       console.log(`${mode} mode - Final UTC range:`, {
-  //         startUTC: startUTC.toISOString(),
-  //         endUTC: endUTC.toISOString(),
-  //         gensetFilter: mode === 'range' ? '1-6' : 'none',
-  //       });
-  //     } catch (error) {
-  //       console.error('Date validation error:', error.message);
-  //       throw error;
-  //     }
-  //   } else if (mode === 'live') {
-  //     const sixHoursAgo = new Date();
-  //     sixHoursAgo.setHours(sixHoursAgo.getHours() - 6);
-
-  //     // ✅ Handle hybrid type for "live" mode as well
-  //     matchStage.$expr = {
-  //       $gte: [
-  //         {
-  //           $cond: {
-  //             if: { $eq: [{ $type: '$timestamp' }, 'string'] },
-  //             then: { $dateFromString: { dateString: '$timestamp' } },
-  //             else: '$timestamp',
-  //           },
-  //         },
-  //         sixHoursAgo,
-  //       ],
-  //     };
-
-  //     console.log('Live mode - Last 6 hours');
-  //   }
-
-  //   if (Object.keys(matchStage).length > 0) {
-  //     pipeline.push({ $match: matchStage });
-  //     console.log('Final match stage:', JSON.stringify(matchStage, null, 2));
-  //   }
-
-  //   pipeline.push({ $project: projection });
-  //   pipeline.push({ $sort: { timestamp: 1 } });
-
-  //   return pipeline;
-  // }
+ 
 
   private buildAggregationPipeline(
     mode: string,
@@ -1664,351 +1745,7 @@ export class DashboardService {
     return metrics;
   }
 
-  // private calculateConsumptionMetrics(
-  //   data: any[],
-  //   mode: string,
-  //   start?: string,
-  //   end?: string,
-  // ): {
-  //   totalConsumption: number;
-  //   totalConsumptionCurrentRun: number;
-  //   energy: number;
-  //   powerFactorStats: { max: number; min: number };
-  // } {
-  //   if (data.length === 0) {
-  //     return {
-  //       totalConsumption: 0,
-  //       totalConsumptionCurrentRun: 0,
-  //       energy: 0,
-  //       powerFactorStats: { max: 0, min: 0 },
-  //     };
-  //   }
-
-  //   // 1. Calculate Power Factor Stats
-  //   const powerFactorValues = data
-  //     .map((d) => d.Genset_Total_Power_Factor_calculated)
-  //     .filter((val) => val !== undefined && val !== null && !isNaN(val));
-
-  //   const powerFactorStats = {
-  //     max: powerFactorValues.length > 0 ? Math.max(...powerFactorValues) : 0,
-  //     min: powerFactorValues.length > 0 ? Math.min(...powerFactorValues) : 0,
-  //   };
-
-  //   // 2. Calculate Total Consumption (MAX - MIN of Total_Fuel_Consumption_calculated)
-  //   const totalConsumptionValues = data
-  //     .map((d) => d.Total_Fuel_Consumption_calculated)
-  //     .filter((val) => val !== undefined && val !== null && !isNaN(val));
-
-  //   let totalConsumption = 0;
-  //   if (totalConsumptionValues.length >= 2) {
-  //     const maxValue = Math.max(...totalConsumptionValues);
-  //     const minValue = Math.min(...totalConsumptionValues);
-  //     totalConsumption = Math.max(0, maxValue - minValue);
-  //   } else if (totalConsumptionValues.length === 1) {
-  //     totalConsumption = totalConsumptionValues[0];
-  //   }
-
-  //   // 3. Calculate Total Consumption Current Run
-  //   let totalConsumptionCurrentRun = 0;
-
-  //   // console.log('=== DEBUG CURRENT RUN CALCULATION ===');
-  //   // console.log(`Mode: ${mode}, End date provided: ${!!end}`);
-
-  //   if (mode === 'range' && end) {
-  //     // Filter data for only END DATE
-  //     const endDateData = this.filterDataForEndDateOnly(data, end);
-
-  //     // console.log(`End date data filtered: ${endDateData.length} records`);
-
-  //     if (endDateData.length > 0) {
-  //       console.log('End date data sample timestamps:');
-  //       endDateData.slice(0, 3).forEach((d, i) => {
-  //         console.log(
-  //           `  ${i + 1}. ${d.timestamp} - Fuel: ${d.Total_Fuel_Consumption_calculated}`,
-  //         );
-  //       });
-
-  //       const currentRunValues = endDateData
-  //         .map((d) => d.Total_Fuel_Consumption_calculated)
-  //         .filter((val) => val !== undefined && val !== null && !isNaN(val));
-
-  //       // console.log(
-  //       //   `Valid fuel values in end date: ${currentRunValues.length}`,
-  //       // );
-
-  //       if (currentRunValues.length >= 2) {
-  //         const firstValue = currentRunValues[0];
-  //         const lastValue = currentRunValues[currentRunValues.length - 1];
-  //         totalConsumptionCurrentRun = Math.max(0, lastValue - firstValue);
-  //         // console.log(
-  //         //   `Current Run Calculation: LAST=${lastValue}, FIRST=${firstValue}, DIFF=${totalConsumptionCurrentRun}`,
-  //         // );
-  //       } else if (currentRunValues.length === 1) {
-  //         totalConsumptionCurrentRun = currentRunValues[0];
-  //         // console.log(
-  //         //   `Current Run Single Value: ${totalConsumptionCurrentRun}`,
-  //         // );
-  //       } else {
-  //         console.log('No valid fuel values found in end date data');
-  //       }
-  //     } else {
-  //       console.log('No end date data found after filtering');
-  //     }
-  //   } else {
-  //     // For live/historic mode, use normal calculation
-  //     const currentRunValues = data
-  //       .map((d) => d.Total_Fuel_Consumption_calculated)
-  //       .filter((val) => val !== undefined && val !== null && !isNaN(val));
-
-  //     if (currentRunValues.length >= 2) {
-  //       const firstValue = currentRunValues[0];
-  //       const lastValue = currentRunValues[currentRunValues.length - 1];
-  //       totalConsumptionCurrentRun = Math.max(0, lastValue - firstValue);
-  //     } else if (currentRunValues.length === 1) {
-  //       totalConsumptionCurrentRun = currentRunValues[0];
-  //     }
-  //   }
-
-  //   // ✅ Convert gallons to liters
-  //   const totalConsumptionLiters = totalConsumption * 3.7854;
-  //   const totalConsumptionCurrentRunLiters =
-  //     totalConsumptionCurrentRun * 3.7854;
-
-  //   // 4. Calculate Energy
-  //   const energyData = this.formulas.calculateEnergy(data);
-  //   let energy = 0;
-
-  //   if (energyData.length > 0) {
-  //     const lastEnergyRecord = energyData[energyData.length - 1];
-  //     energy = lastEnergyRecord.Cumulative_Energy_kWh || 0;
-  //   }
-
-  //   // console.log('=== FINAL CONSUMPTION METRICS ===');
-  //   // console.log(
-  //   //   `Total Consumption: ${totalConsumptionLiters.toFixed(2)} liters`,
-  //   // );
-  //   // console.log(
-  //   //   `Current Run Consumption: ${totalConsumptionCurrentRunLiters.toFixed(2)} liters`,
-  //   // );
-  //   // console.log(`Energy: ${energy}`);
-
-  //   return {
-  //     totalConsumption: +totalConsumptionLiters.toFixed(2),
-  //     totalConsumptionCurrentRun: +totalConsumptionCurrentRunLiters.toFixed(2),
-  //     energy: +energy.toFixed(2),
-  //     powerFactorStats: {
-  //       max: +powerFactorStats.max.toFixed(4),
-  //       min: +powerFactorStats.min.toFixed(4),
-  //     },
-  //   };
-  // }
-
-  // private calculateConsumptionMetrics(
-  //   data: any[],
-  //   mode: string,
-  //   start?: string,
-  //   end?: string,
-  // ): {
-  //   totalConsumption: number;
-  //   totalConsumptionCurrentRun: number;
-  //   energy: number;
-  //   powerFactorStats: { max: number; min: number };
-  // } {
-  //   if (data.length === 0) {
-  //     return {
-  //       totalConsumption: 0,
-  //       totalConsumptionCurrentRun: 0,
-  //       energy: 0,
-  //       powerFactorStats: { max: 0, min: 0 },
-  //     };
-  //   }
-
-  //   // 1. Calculate Power Factor Stats
-  //   const powerFactorValues = data
-  //     .map((d) => d.Genset_Total_Power_Factor_calculated)
-  //     .filter((val) => val !== undefined && val !== null && !isNaN(val));
-
-  //   const powerFactorStats = {
-  //     max: powerFactorValues.length > 0 ? Math.max(...powerFactorValues) : 0,
-  //     min: powerFactorValues.length > 0 ? Math.min(...powerFactorValues) : 0,
-  //   };
-
-  //   // 2. Calculate Total Consumption (ENTIRE DATE RANGE: start date first - end date last)
-  //   let totalConsumption = 0;
-
-  //   console.log('=== TOTAL CONSUMPTION CALCULATION (ENTIRE RANGE) ===');
-
-  //   if (mode === 'range' && start && end) {
-  //     // For range mode: Use entire date range (start date first record - end date last record)
-  //     const startDateData = this.filterDataForStartDateOnly(data, start);
-  //     const endDateData = this.filterDataForEndDateOnly(data, end);
-
-  //     console.log(
-  //       `Start date records: ${startDateData.length}, End date records: ${endDateData.length}`,
-  //     );
-
-  //     if (startDateData.length > 0 && endDateData.length > 0) {
-  //       const firstValue = startDateData[0].Total_Fuel_Consumption_calculated;
-  //       const lastValue =
-  //         endDateData[endDateData.length - 1].Total_Fuel_Consumption_calculated;
-
-  //       console.log(
-  //         `TOTAL: FIRST (${start}) = ${firstValue}, LAST (${end}) = ${lastValue}`,
-  //       );
-
-  //       if (
-  //         firstValue !== undefined &&
-  //         lastValue !== undefined &&
-  //         !isNaN(firstValue) &&
-  //         !isNaN(lastValue)
-  //       ) {
-  //         totalConsumption = Math.max(0, lastValue - firstValue);
-  //         console.log(
-  //           `TOTAL CONSUMPTION: ${lastValue} - ${firstValue} = ${totalConsumption}`,
-  //         );
-  //       }
-  //     } else {
-  //       // Fallback: Use MAX - MIN if date filtering fails
-  //       const totalConsumptionValues = data
-  //         .map((d) => d.Total_Fuel_Consumption_calculated)
-  //         .filter((val) => val !== undefined && val !== null && !isNaN(val));
-
-  //       if (totalConsumptionValues.length >= 2) {
-  //         const maxValue = Math.max(...totalConsumptionValues);
-  //         const minValue = Math.min(...totalConsumptionValues);
-  //         totalConsumption = Math.max(0, maxValue - minValue);
-  //         console.log(
-  //           `TOTAL CONSUMPTION (FALLBACK MAX-MIN): ${maxValue} - ${minValue} = ${totalConsumption}`,
-  //         );
-  //       } else if (totalConsumptionValues.length === 1) {
-  //         totalConsumption = totalConsumptionValues[0];
-  //         console.log(
-  //           `TOTAL CONSUMPTION (FALLBACK SINGLE): ${totalConsumption}`,
-  //         );
-  //       }
-  //     }
-  //   } else {
-  //     // For live/historic mode: Use MAX - MIN of entire dataset
-  //     const totalConsumptionValues = data
-  //       .map((d) => d.Total_Fuel_Consumption_calculated)
-  //       .filter((val) => val !== undefined && val !== null && !isNaN(val));
-
-  //     if (totalConsumptionValues.length >= 2) {
-  //       const maxValue = Math.max(...totalConsumptionValues);
-  //       const minValue = Math.min(...totalConsumptionValues);
-  //       totalConsumption = Math.max(0, maxValue - minValue);
-  //       console.log(
-  //         `TOTAL CONSUMPTION (MAX-MIN): ${maxValue} - ${minValue} = ${totalConsumption}`,
-  //       );
-  //     } else if (totalConsumptionValues.length === 1) {
-  //       totalConsumption = totalConsumptionValues[0];
-  //       console.log(`TOTAL CONSUMPTION (SINGLE): ${totalConsumption}`);
-  //     }
-  //   }
-
-  //   // 3. Calculate Total Consumption Current Run (END DATE ONLY: end date first - end date last)
-  //   let totalConsumptionCurrentRun = 0;
-
-  //   console.log('=== CURRENT RUN CONSUMPTION CALCULATION (END DATE ONLY) ===');
-
-  //   if (mode === 'range' && end) {
-  //     // Filter data for only END DATE
-  //     const endDateData = this.filterDataForEndDateOnly(data, end);
-
-  //     console.log(`End date data filtered: ${endDateData.length} records`);
-
-  //     if (endDateData.length > 0) {
-  //       console.log('End date data sample:');
-  //       endDateData.slice(0, 3).forEach((d, i) => {
-  //         console.log(
-  //           `  ${i + 1}. ${d.timestamp} - Fuel: ${d.Total_Fuel_Consumption_calculated}`,
-  //         );
-  //       });
-
-  //       // ✅ FIX: Only use end date data for current run calculation
-  //       if (endDateData.length >= 2) {
-  //         const firstValue = endDateData[0].Total_Fuel_Consumption_calculated;
-  //         const lastValue =
-  //           endDateData[endDateData.length - 1]
-  //             .Total_Fuel_Consumption_calculated;
-
-  //         console.log(
-  //           `CURRENT RUN: FIRST in end date = ${firstValue}, LAST in end date = ${lastValue}`,
-  //         );
-
-  //         if (
-  //           firstValue !== undefined &&
-  //           lastValue !== undefined &&
-  //           !isNaN(firstValue) &&
-  //           !isNaN(lastValue)
-  //         ) {
-  //           totalConsumptionCurrentRun = Math.max(0, lastValue - firstValue);
-  //           console.log(
-  //             `CURRENT RUN CALCULATION: ${lastValue} - ${firstValue} = ${totalConsumptionCurrentRun}`,
-  //           );
-  //         }
-  //       } else if (endDateData.length === 1) {
-  //         totalConsumptionCurrentRun =
-  //           endDateData[0].Total_Fuel_Consumption_calculated || 0;
-  //         console.log(
-  //           `CURRENT RUN (SINGLE RECORD): ${totalConsumptionCurrentRun}`,
-  //         );
-  //       }
-  //     } else {
-  //       console.log('No end date data found after filtering');
-  //     }
-  //   } else {
-  //     // For live/historic mode: Use normal calculation (last - first of entire dataset)
-  //     const currentRunValues = data
-  //       .map((d) => d.Total_Fuel_Consumption_calculated)
-  //       .filter((val) => val !== undefined && val !== null && !isNaN(val));
-
-  //     if (currentRunValues.length >= 2) {
-  //       const firstValue = currentRunValues[0];
-  //       const lastValue = currentRunValues[currentRunValues.length - 1];
-  //       totalConsumptionCurrentRun = Math.max(0, lastValue - firstValue);
-  //       console.log(
-  //         `CURRENT RUN (ENTIRE DATASET): LAST=${lastValue}, FIRST=${firstValue}, DIFF=${totalConsumptionCurrentRun}`,
-  //       );
-  //     } else if (currentRunValues.length === 1) {
-  //       totalConsumptionCurrentRun = currentRunValues[0];
-  //       console.log(`CURRENT RUN (SINGLE): ${totalConsumptionCurrentRun}`);
-  //     }
-  //   }
-
-  //   // ✅ Convert gallons to liters
-  //   const totalConsumptionLiters = totalConsumption * 3.7854;
-  //   const totalConsumptionCurrentRunLiters =
-  //     totalConsumptionCurrentRun * 3.7854;
-
-  //   // 4. Calculate Energy
-  //   const energyData = this.formulas.calculateEnergy(data);
-  //   let energy = 0;
-
-  //   if (energyData.length > 0) {
-  //     const lastEnergyRecord = energyData[energyData.length - 1];
-  //     energy = lastEnergyRecord.Cumulative_Energy_kWh || 0;
-  //   }
-
-  //   console.log('=== FINAL CONSUMPTION METRICS ===');
-  //   console.log(
-  //     `Total Consumption: ${totalConsumption} gallons = ${totalConsumptionLiters.toFixed(2)} liters`,
-  //   );
-  //   console.log(
-  //     `Current Run Consumption: ${totalConsumptionCurrentRun} gallons = ${totalConsumptionCurrentRunLiters.toFixed(2)} liters`,
-  //   );
-  //   console.log(`Energy: ${energy} kWh`);
-
-  //   return {
-  //     totalConsumption: +totalConsumptionLiters.toFixed(2),
-  //     totalConsumptionCurrentRun: +totalConsumptionCurrentRunLiters.toFixed(2),
-  //     energy: +energy.toFixed(2),
-  //     powerFactorStats: {
-  //       max: +powerFactorStats.max.toFixed(4),
-  //       min: +powerFactorStats.min.toFixed(4),
-  //     },
-  //   };
-  // }
+  
 
   // private calculateConsumptionMetrics(
   //   data: any[],
@@ -2058,9 +1795,10 @@ export class DashboardService {
   //   let totalConsumptionCurrentRun = 0;
 
   //   console.log('=== DEBUG CURRENT RUN CALCULATION ===');
-  //   console.log(`Mode: ${mode}, End date provided: ${!!end}`);
+  //   console.log(`Mode: ${mode}, Start: ${start}, End: ${end}`);
 
-  //   if (mode === 'range' && end) {
+  //   // ✅ CHANGED: Use range logic for BOTH range and historic modes
+  //   if ((mode === 'range' || mode === 'historic') && end) {
   //     // Filter data for only END DATE
   //     const endDateData = this.filterDataForEndDateOnly(data, end);
 
@@ -2101,7 +1839,7 @@ export class DashboardService {
   //       console.log('No end date data found after filtering');
   //     }
   //   } else {
-  //     // For live/historic mode, use normal calculation
+  //     // For live mode only, use normal calculation
   //     const currentRunValues = data
   //       .map((d) => d.Total_Fuel_Consumption_calculated)
   //       .filter((val) => val !== undefined && val !== null && !isNaN(val));
@@ -2149,193 +1887,34 @@ export class DashboardService {
   //   };
   // }
 
-  private calculateConsumptionMetrics(
-    data: any[],
-    mode: string,
-    start?: string,
-    end?: string,
-  ): {
-    totalConsumption: number;
-    totalConsumptionCurrentRun: number;
-    energy: number;
-    powerFactorStats: { max: number; min: number };
-  } {
-    if (data.length === 0) {
-      return {
-        totalConsumption: 0,
-        totalConsumptionCurrentRun: 0,
-        energy: 0,
-        powerFactorStats: { max: 0, min: 0 },
-      };
-    }
 
-    // 1. Calculate Power Factor Stats
-    const powerFactorValues = data
-      .map((d) => d.Genset_Total_Power_Factor_calculated)
-      .filter((val) => val !== undefined && val !== null && !isNaN(val));
-
-    const powerFactorStats = {
-      max: powerFactorValues.length > 0 ? Math.max(...powerFactorValues) : 0,
-      min: powerFactorValues.length > 0 ? Math.min(...powerFactorValues) : 0,
-    };
-
-    // 2. Calculate Total Consumption (MAX - MIN of Total_Fuel_Consumption_calculated)
-    const totalConsumptionValues = data
-      .map((d) => d.Total_Fuel_Consumption_calculated)
-      .filter((val) => val !== undefined && val !== null && !isNaN(val));
-
-    let totalConsumption = 0;
-    if (totalConsumptionValues.length >= 2) {
-      const maxValue = Math.max(...totalConsumptionValues);
-      const minValue = Math.min(...totalConsumptionValues);
-      totalConsumption = Math.max(0, maxValue - minValue);
-    } else if (totalConsumptionValues.length === 1) {
-      totalConsumption = totalConsumptionValues[0];
-    }
-
-    // 3. Calculate Total Consumption Current Run
-    let totalConsumptionCurrentRun = 0;
-
-    console.log('=== DEBUG CURRENT RUN CALCULATION ===');
-    console.log(`Mode: ${mode}, Start: ${start}, End: ${end}`);
-
-    // ✅ CHANGED: Use range logic for BOTH range and historic modes
-    if ((mode === 'range' || mode === 'historic') && end) {
-      // Filter data for only END DATE
-      const endDateData = this.filterDataForEndDateOnly(data, end);
-
-      console.log(`End date data filtered: ${endDateData.length} records`);
-
-      if (endDateData.length > 0) {
-        console.log('End date data sample timestamps:');
-        endDateData.slice(0, 3).forEach((d, i) => {
-          console.log(
-            `  ${i + 1}. ${d.timestamp} - Fuel: ${d.Total_Fuel_Consumption_calculated}`,
-          );
-        });
-
-        const currentRunValues = endDateData
-          .map((d) => d.Total_Fuel_Consumption_calculated)
-          .filter((val) => val !== undefined && val !== null && !isNaN(val));
-
-        console.log(
-          `Valid fuel values in end date: ${currentRunValues.length}`,
-        );
-
-        if (currentRunValues.length >= 2) {
-          const firstValue = currentRunValues[0];
-          const lastValue = currentRunValues[currentRunValues.length - 1];
-          totalConsumptionCurrentRun = Math.max(0, lastValue - firstValue);
-          console.log(
-            `Current Run Calculation: LAST=${lastValue}, FIRST=${firstValue}, DIFF=${totalConsumptionCurrentRun}`,
-          );
-        } else if (currentRunValues.length === 1) {
-          totalConsumptionCurrentRun = currentRunValues[0];
-          console.log(
-            `Current Run Single Value: ${totalConsumptionCurrentRun}`,
-          );
-        } else {
-          console.log('No valid fuel values found in end date data');
-        }
-      } else {
-        console.log('No end date data found after filtering');
-      }
-    } else {
-      // For live mode only, use normal calculation
-      const currentRunValues = data
-        .map((d) => d.Total_Fuel_Consumption_calculated)
-        .filter((val) => val !== undefined && val !== null && !isNaN(val));
-
-      if (currentRunValues.length >= 2) {
-        const firstValue = currentRunValues[0];
-        const lastValue = currentRunValues[currentRunValues.length - 1];
-        totalConsumptionCurrentRun = Math.max(0, lastValue - firstValue);
-      } else if (currentRunValues.length === 1) {
-        totalConsumptionCurrentRun = currentRunValues[0];
-      }
-    }
-
-    // ✅ Convert gallons to liters
-    const totalConsumptionLiters = totalConsumption * 3.7854;
-    const totalConsumptionCurrentRunLiters =
-      totalConsumptionCurrentRun * 3.7854;
-
-    // 4. Calculate Energy
-    const energyData = this.formulas.calculateEnergy(data);
-    let energy = 0;
-
-    if (energyData.length > 0) {
-      const lastEnergyRecord = energyData[energyData.length - 1];
-      energy = lastEnergyRecord.Cumulative_Energy_kWh || 0;
-    }
-
-    console.log('=== FINAL CONSUMPTION METRICS ===');
-    console.log(
-      `Total Consumption: ${totalConsumptionLiters.toFixed(2)} liters`,
-    );
-    console.log(
-      `Current Run Consumption: ${totalConsumptionCurrentRunLiters.toFixed(2)} liters`,
-    );
-    console.log(`Energy: ${energy}`);
-
-    return {
-      totalConsumption: +totalConsumptionLiters.toFixed(2),
-      totalConsumptionCurrentRun: +totalConsumptionCurrentRunLiters.toFixed(2),
-      energy: +energy.toFixed(2),
-      powerFactorStats: {
-        max: +powerFactorStats.max.toFixed(4),
-        min: +powerFactorStats.min.toFixed(4),
-      },
-    };
-  }
-
-  /** -------------------
-   * FIXED: Filter data for End Date only with string timestamp handling
-   * ------------------- */
   // private filterDataForEndDateOnly(data: any[], endDate: string): any[] {
   //   try {
-  //     console.log(`Filtering for end date: ${endDate}`);
+  //     console.log(`Filtering for end date (RAW): ${endDate}`);
 
-  //     // Parse end date and set time range for Karachi timezone
-  //     const end = new Date(endDate);
-  //     const startOfEndDate = new Date(end);
-  //     startOfEndDate.setHours(0, 0, 0, 0);
+  //     // ✅ Convert incoming date to pure UTC date string (YYYY-MM-DD)
+  //     const targetUTCDate = new Date(endDate).toISOString().split('T')[0];
 
-  //     const endOfEndDate = new Date(end);
-  //     endOfEndDate.setHours(23, 59, 59, 999);
-
-  //     console.log(
-  //       `Local date range: ${startOfEndDate.toISOString()} to ${endOfEndDate.toISOString()}`,
-  //     );
+  //     console.log(`Target UTC date: ${targetUTCDate}`);
 
   //     const filteredData = data.filter((d) => {
   //       if (!d.timestamp) return false;
 
-  //       // ✅ FIX: Handle string timestamp with timezone
-  //       let recordDate;
-  //       if (typeof d.timestamp === 'string') {
-  //         // Parse string timestamp directly
-  //         recordDate = new Date(d.timestamp);
-  //       } else {
-  //         recordDate = d.timestamp;
-  //       }
+  //       // ✅ Safely parse timestamp (works with ISO strings + Date objects)
+  //       const recordDate = new Date(d.timestamp);
 
   //       if (isNaN(recordDate.getTime())) {
   //         console.log(`Invalid timestamp: ${d.timestamp}`);
   //         return false;
   //       }
 
-  //       // Compare dates (ignore time for date comparison)
-  //       const recordDateOnly = new Date(recordDate);
-  //       recordDateOnly.setHours(0, 0, 0, 0);
+  //       // ✅ Convert record timestamp to UTC date string
+  //       const recordUTCDate = recordDate.toISOString().split('T')[0];
 
-  //       const targetDateOnly = new Date(end);
-  //       targetDateOnly.setHours(0, 0, 0, 0);
-
-  //       return recordDateOnly.getTime() === targetDateOnly.getTime();
+  //       return recordUTCDate === targetUTCDate;
   //     });
 
-  //     console.log(`Filtered ${filteredData.length} records for end date`);
+  //     console.log(`Filtered ${filteredData.length} records for end UTC date`);
 
   //     if (filteredData.length > 0) {
   //       console.log('First 3 filtered records:');
@@ -2345,7 +1924,7 @@ export class DashboardService {
   //         );
   //       });
   //     } else {
-  //       console.log('No records found for end date. All timestamps:');
+  //       console.log('No records found for end UTC date. Sample timestamps:');
   //       data.slice(0, 5).forEach((item, index) => {
   //         console.log(`  ${index + 1}. ${item.timestamp}`);
   //       });
@@ -2358,52 +1937,222 @@ export class DashboardService {
   //   }
   // }
 
-  private filterDataForEndDateOnly(data: any[], endDate: string): any[] {
-    try {
-      console.log(`Filtering for end date (RAW): ${endDate}`);
 
-      // ✅ Convert incoming date to pure UTC date string (YYYY-MM-DD)
-      const targetUTCDate = new Date(endDate).toISOString().split('T')[0];
+  private calculateConsumptionMetrics(
+  data: any[],
+  mode: string,
+  start?: string,
+  end?: string,
+): {
+  totalConsumption: number;
+  totalConsumptionCurrentRun: number;
+  energy: number;
+  powerFactorStats: { max: number; min: number };
+} {
+  console.log('=== CALCULATE CONSUMPTION METRICS ===');
+  console.log(`Data records: ${data.length}, Mode: ${mode}`);
+  console.log(`Start: ${start}, End: ${end}`);
 
-      console.log(`Target UTC date: ${targetUTCDate}`);
+  if (data.length === 0) {
+    console.log('❌ No data available');
+    return {
+      totalConsumption: 0,
+      totalConsumptionCurrentRun: 0,
+      energy: 0,
+      powerFactorStats: { max: 0, min: 0 },
+    };
+  }
 
-      const filteredData = data.filter((d) => {
-        if (!d.timestamp) return false;
+  // 1. Calculate Power Factor Stats
+  const powerFactorValues = data
+    .map((d) => d.Genset_Total_Power_Factor_calculated)
+    .filter((val) => val !== undefined && val !== null && !isNaN(val));
 
-        // ✅ Safely parse timestamp (works with ISO strings + Date objects)
-        const recordDate = new Date(d.timestamp);
+  const powerFactorStats = {
+    max: powerFactorValues.length > 0 ? Math.max(...powerFactorValues) : 0,
+    min: powerFactorValues.length > 0 ? Math.min(...powerFactorValues) : 0,
+  };
 
-        if (isNaN(recordDate.getTime())) {
-          console.log(`Invalid timestamp: ${d.timestamp}`);
-          return false;
-        }
+  console.log(`⚡ Power Factor - Max: ${powerFactorStats.max}, Min: ${powerFactorStats.min}`);
 
-        // ✅ Convert record timestamp to UTC date string
-        const recordUTCDate = recordDate.toISOString().split('T')[0];
+  // 2. Calculate Total Consumption (MAX - MIN of ENTIRE RANGE)
+  const totalConsumptionValues = data
+    .map((d) => d.Total_Fuel_Consumption_calculated)
+    .filter((val) => val !== undefined && val !== null && !isNaN(val));
 
-        return recordUTCDate === targetUTCDate;
-      });
+  let totalConsumption = 0;
+  if (totalConsumptionValues.length >= 2) {
+    const maxValue = Math.max(...totalConsumptionValues);
+    const minValue = Math.min(...totalConsumptionValues);
+    totalConsumption = Math.max(0, maxValue - minValue);
+    console.log(`⛽ TOTAL CONSUMPTION (ENTIRE RANGE):`);
+    console.log(`   Max value: ${maxValue.toFixed(2)} gallons`);
+    console.log(`   Min value: ${minValue.toFixed(2)} gallons`);
+    console.log(`   Difference: ${totalConsumption.toFixed(2)} gallons`);
+  } else if (totalConsumptionValues.length === 1) {
+    totalConsumption = totalConsumptionValues[0];
+    console.log(`⛽ TOTAL CONSUMPTION (Single value): ${totalConsumption} gallons`);
+  }
 
-      console.log(`Filtered ${filteredData.length} records for end UTC date`);
+  // 3. Calculate Total Consumption Current Run (END DATE ONLY)
+  let totalConsumptionCurrentRun = 0;
 
-      if (filteredData.length > 0) {
-        console.log('First 3 filtered records:');
-        filteredData.slice(0, 3).forEach((item, index) => {
-          console.log(
-            `  ${index + 1}. ${item.timestamp} - ${item.Total_Fuel_Consumption_calculated}`,
-          );
-        });
-      } else {
-        console.log('No records found for end UTC date. Sample timestamps:');
-        data.slice(0, 5).forEach((item, index) => {
-          console.log(`  ${index + 1}. ${item.timestamp}`);
-        });
+  if ((mode === 'range' || mode === 'historic') && end) {
+    console.log('🎯 CALCULATING CURRENT RUN (END DATE ONLY)');
+    
+    const endDateData = this.filterDataForEndDateOnly(data, end);
+    console.log(`📊 End date records: ${endDateData.length}`);
+    
+    if (endDateData.length >= 2) {
+      const endDateValues = endDateData
+        .map((d) => d.Total_Fuel_Consumption_calculated)
+        .filter((val) => val !== undefined && val !== null && !isNaN(val));
+      
+      if (endDateValues.length >= 2) {
+        const firstValue = endDateValues[0];
+        const lastValue = endDateValues[endDateValues.length - 1];
+        totalConsumptionCurrentRun = Math.max(0, lastValue - firstValue);
+        
+        console.log(`⛽ CURRENT RUN (END DATE ONLY):`);
+        console.log(`   First value (end date): ${firstValue.toFixed(2)} gallons`);
+        console.log(`   Last value (end date): ${lastValue.toFixed(2)} gallons`);
+        console.log(`   Difference: ${totalConsumptionCurrentRun.toFixed(2)} gallons`);
       }
+    } else if (endDateData.length === 1) {
+      totalConsumptionCurrentRun = endDateData[0].Total_Fuel_Consumption_calculated || 0;
+      console.log(`⛽ CURRENT RUN (Single end date record): ${totalConsumptionCurrentRun} gallons`);
+    } else {
+      console.log('⚠️ No end date data found for current run calculation');
+    }
+  } else {
+    console.log('🎯 CALCULATING CURRENT RUN (NORMAL - NO END DATE)');
+    const currentRunValues = data
+      .map((d) => d.Total_Fuel_Consumption_calculated)
+      .filter((val) => val !== undefined && val !== null && !isNaN(val));
 
-      return filteredData;
-    } catch (error) {
-      console.error('Error filtering end date data:', error);
-      return [];
+    if (currentRunValues.length >= 2) {
+      const firstValue = currentRunValues[0];
+      const lastValue = currentRunValues[currentRunValues.length - 1];
+      totalConsumptionCurrentRun = Math.max(0, lastValue - firstValue);
+      console.log(`⛽ CURRENT RUN (NORMAL): ${lastValue} - ${firstValue} = ${totalConsumptionCurrentRun} gallons`);
+    } else if (currentRunValues.length === 1) {
+      totalConsumptionCurrentRun = currentRunValues[0];
+      console.log(`⛽ CURRENT RUN (Single): ${totalConsumptionCurrentRun} gallons`);
     }
   }
+
+  // ✅ Convert gallons to liters
+  const totalConsumptionLiters = totalConsumption * 3.7854;
+  const totalConsumptionCurrentRunLiters = totalConsumptionCurrentRun * 3.7854;
+
+  // 4. Calculate Energy
+  const energyData = this.formulas.calculateEnergy(data);
+  let energy = 0;
+
+  if (energyData.length > 0) {
+    const lastEnergyRecord = energyData[energyData.length - 1];
+    energy = lastEnergyRecord.Cumulative_Energy_kWh || 0;
+  }
+
+  console.log('=== FINAL CONSUMPTION METRICS ===');
+  console.log(`📊 Total Consumption: ${totalConsumptionLiters.toFixed(2)} liters (${totalConsumption.toFixed(2)} gallons)`);
+  console.log(`📊 Current Run Consumption: ${totalConsumptionCurrentRunLiters.toFixed(2)} liters (${totalConsumptionCurrentRun.toFixed(2)} gallons)`);
+  console.log(`⚡ Energy: ${energy.toFixed(2)} kWh`);
+  console.log(`🔌 Power Factor - Max: ${powerFactorStats.max.toFixed(4)}, Min: ${powerFactorStats.min.toFixed(4)}`);
+
+  return {
+    totalConsumption: +totalConsumptionLiters.toFixed(2),
+    totalConsumptionCurrentRun: +totalConsumptionCurrentRunLiters.toFixed(2),
+    energy: +energy.toFixed(2),
+    powerFactorStats: {
+      max: +powerFactorStats.max.toFixed(4),
+      min: +powerFactorStats.min.toFixed(4),
+    },
+  };
+}
+
+private filterDataForEndDateOnly(data: any[], endDate: string): any[] {
+  console.log('=== FILTER DATA FOR END DATE ONLY ===');
+  console.log(`Input endDate: "${endDate}"`);
+  console.log(`Total data records: ${data.length}`);
+  
+  // ✅ Extract just the date part from endDate
+  let targetDate = '';
+  
+  // Extract YYYY-MM-DD from endDate
+  const dateMatch = endDate.match(/\d{4}-\d{2}-\d{2}/);
+  if (dateMatch) {
+    targetDate = dateMatch[0];
+  } else {
+    console.log('❌ Could not extract date from endDate');
+    return [];
+  }
+  
+  console.log(`🎯 Target date to filter: ${targetDate}`);
+  
+  // ✅ Check first 5 timestamps in data
+  console.log('🔍 Checking first 5 timestamps in data:');
+  for (let i = 0; i < Math.min(5, data.length); i++) {
+    const timestamp = data[i].timestamp;
+    console.log(`  ${i + 1}. ${timestamp} - Contains "${targetDate}": ${String(timestamp).includes(targetDate)}`);
+  }
+  
+  // ✅ Check last 5 timestamps in data
+  console.log('🔍 Checking last 5 timestamps in data:');
+  for (let i = Math.max(0, data.length - 5); i < data.length; i++) {
+    const timestamp = data[i].timestamp;
+    console.log(`  ${i + 1}. ${timestamp} - Contains "${targetDate}": ${String(timestamp).includes(targetDate)}`);
+  }
+  
+  // ✅ Filter the data
+  const filteredData = data.filter((item, index) => {
+    if (!item.timestamp) return false;
+    
+    const timestampStr = String(item.timestamp);
+    const containsDate = timestampStr.includes(targetDate);
+    
+    // Debug: Log first few matches
+    if (containsDate && filteredData.length < 3) {
+      console.log(`✅ Found match at index ${index}: ${timestampStr}`);
+      console.log(`   Fuel value: ${item.Total_Fuel_Consumption_calculated}`);
+    }
+    
+    return containsDate;
+  });
+  
+  console.log(`📊 Filtered ${filteredData.length} records for date: ${targetDate}`);
+  
+  if (filteredData.length > 0) {
+    console.log('📈 First filtered record:');
+    console.log(`   Time: ${filteredData[0].timestamp}`);
+    console.log(`   Fuel: ${filteredData[0].Total_Fuel_Consumption_calculated}`);
+    
+    console.log('📈 Last filtered record:');
+    console.log(`   Time: ${filteredData[filteredData.length - 1].timestamp}`);
+    console.log(`   Fuel: ${filteredData[filteredData.length - 1].Total_Fuel_Consumption_calculated}`);
+    
+    const diff = filteredData[filteredData.length - 1].Total_Fuel_Consumption_calculated - 
+                filteredData[0].Total_Fuel_Consumption_calculated;
+    console.log(`💰 Fuel difference: ${diff.toFixed(2)} gallons`);
+  } else {
+    console.log('⚠️ No records found for the target date!');
+    console.log('🔍 All unique dates in data:');
+    
+    // Get unique dates from data
+    const uniqueDates = new Set<string>();
+    data.forEach(item => {
+      if (item.timestamp) {
+        const ts = String(item.timestamp);
+        const dateMatch = ts.match(/\d{4}-\d{2}-\d{2}/);
+        if (dateMatch) {
+          uniqueDates.add(dateMatch[0]);
+        }
+      }
+    });
+    
+    console.log('   Unique dates found:', Array.from(uniqueDates).sort());
+  }
+  
+  return filteredData;
+}
 }
