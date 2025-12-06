@@ -1,12 +1,33 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Query, Render } from '@nestjs/common';
 import { DashboardService } from './dashboard.service';
 
 @Controller('dashboard')
 export class DashboardController {
   constructor(private readonly dashboardService: DashboardService) {}
+
+
+
+  @Get('test-websocket')
+  @Render('websocket-test')
+  testWebSocket() {
+    return { message: 'WebSocket Test Page' };
+  }
+
+  @Get('health')
+  healthCheck() {
+    return {
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      websocket: {
+        enabled: true,
+        namespace: '/live-dashboard',
+        transports: ['websocket', 'polling'],
+      },
+    };
+  }
 
   /** ---------------------------------------------------
    *  DASHBOARD 1 — BASIC LEVEL (Operator Level)

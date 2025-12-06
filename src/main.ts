@@ -37,6 +37,7 @@ async function bootstrap() {
 
   await app.listen(process.env.PORT ?? 5000);
   Logger.log('🚀 Application running on http://localhost:5000');
+  Logger.log(`📡 WebSocket running on: ws://localhost:5000/live-dashboard`);
 }
 
 bootstrap();
