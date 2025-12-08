@@ -243,90 +243,6 @@ export class ReportsService {
     return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
   }
 
-  // async getFuelReport(payload: {
-  //   startDate: string;
-  //   endDate: string;
-  //   fuelCostPerLitre: number;
-  // }) {
-  //   const { startDate, endDate, fuelCostPerLitre } = payload;
-
-  //   if (!startDate || !endDate)
-  //     throw new Error('startDate and endDate are required');
-
-  //   // Aggregation pipeline
-  //   const pipeline = [
-  //     {
-  //       $match: {
-  //         timestamp: { $gte: startDate, $lte: endDate },
-  //         Genset_Run_SS: { $gte: 1 }, // Only genset ON
-  //       },
-  //     },
-  //     {
-  //       $addFields: {
-  //         date: { $substr: ['$timestamp', 0, 10] }, // "YYYY-MM-DD" for grouping
-  //         energyKWH: { $multiply: ['$Genset_Total_kW', 0.000833] },
-  //         Load_Percent_Calc: '$Load_Percent',
-  //       },
-  //     },
-  //     {
-  //       $group: {
-  //         _id: '$date',
-  //         startTime: { $min: '$timestamp' },
-  //         endTime: { $max: '$timestamp' },
-  //         fuelMin: { $min: '$Total_Fuel_Consumption_calculated' },
-  //         fuelMax: { $max: '$Total_Fuel_Consumption_calculated' },
-  //         engineMin: { $min: '$Engine_Running_Time_calculated' },
-  //         engineMax: { $max: '$Engine_Running_Time_calculated' },
-  //         totalProduction: { $sum: '$energyKWH' },
-  //         avgLoad: { $avg: '$Load_Percent_Calc' },
-  //       },
-  //     },
-  //     { $sort: { _id: 1 } },
-  //   ];
-
-  //   const aggregated = await this.collection.aggregate(pipeline).toArray();
-
-  //   if (!aggregated.length)
-  //     return [{ message: 'No data found for selected dates' }];
-
-  //   let cumulativeProduction = 0;
-
-  //   const rows = aggregated.map((day) => {
-  //     const fuelMin = day.fuelMin ?? 0;
-  //     const fuelMax = day.fuelMax ?? 0;
-  //     const engineMin = day.engineMin ?? 0;
-  //     const engineMax = day.engineMax ?? 0;
-  //     const totalProduction = day.totalProduction ?? 0;
-  //     const avgLoad = day.avgLoad ?? 0;
-
-  //     const fuelConsumedLiters = +((fuelMax - fuelMin) * 3.7854).toFixed(2);
-  //     const runHours = +(engineMax - engineMin).toFixed(2);
-  //     const cost = +(fuelConsumedLiters * fuelCostPerLitre).toFixed(2);
-  //     const costPerUnit = totalProduction
-  //       ? +(cost / totalProduction).toFixed(2)
-  //       : 0;
-
-  //     const formatTime = (ts: string) => ts?.slice(11, 16) ?? '00:00';
-
-  //     cumulativeProduction += totalProduction;
-
-  //     return {
-  //       Date: day._id,
-  //       Duration: `${formatTime(day.startTime)}–${formatTime(day.endTime)}`,
-  //       Run_Hours: runHours,
-  //       Fuel_Consumed: `${fuelConsumedLiters} Ltrs`,
-  //       Production: `${totalProduction.toFixed(2)} kWh`,
-  //       Load_Percent: +avgLoad.toFixed(2),
-  //       Cost: cost,
-  //       CostPerUnit: costPerUnit,
-  //       TotalCost: cost,
-  //       CumulativeProduction: cumulativeProduction.toFixed(2),
-  //     };
-  //   });
-
-  //   return rows;
-  // }
-
   async getFuelReport(payload: {
     startDate: string;
     endDate: string;
@@ -402,6 +318,11 @@ export class ReportsService {
         avgLoadPercent = loads.reduce((a, b) => a + b, 0) / loads.length;
       }
 
+      const producedPerLiter =
+        fuelConsumedLiters > 0
+          ? +(totalProduction / fuelConsumedLiters).toFixed(2)
+          : 0;
+
       // -----------------------------------------------------------------------
 
       const formatTime = (ts: string) => ts?.slice(11, 16) ?? '00:00';
@@ -417,6 +338,9 @@ export class ReportsService {
         CostPerUnit: totalProduction ? +(cost / totalProduction).toFixed(2) : 0,
         TotalCost: cost,
         CumulativeProduction: cumulativeProduction.toFixed(2),
+        // Producted Per Liter = Total Production (kWh) / Fuel Consumed (Liters)
+
+        ProducedPerLiter: producedPerLiter,
       };
     });
 

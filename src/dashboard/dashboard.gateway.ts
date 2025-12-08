@@ -21,15 +21,17 @@ import { Injectable, Logger } from '@nestjs/common';
   transports: ['websocket', 'polling'],
 })
 @Injectable()
-export class DashboardGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class DashboardGateway
+  implements OnGatewayConnection, OnGatewayDisconnect
+{
   private readonly logger = new Logger(DashboardGateway.name);
-  
+
   @WebSocketServer()
   server: Server;
 
   // Har client ke liye alag interval store karein
   private clientIntervals = new Map<string, NodeJS.Timeout>();
-  
+
   // Active live dashboards track karein
   private activeDashboards = new Map<string, Set<string>>(); // clientId -> dashboards Set
 
@@ -43,14 +45,14 @@ export class DashboardGateway implements OnGatewayConnection, OnGatewayDisconnec
   async handleConnection(@ConnectedSocket() client: Socket) {
     const clientId = client.id;
     this.logger.log(`Client connected: ${clientId}`);
-    
+
     // Welcome message
     client.emit('connected', {
       message: 'Connected to Live Dashboard Server',
       clientId,
       timestamp: new Date().toISOString(),
     });
-    
+
     // Client ke liye active dashboards ka Set initialize karein
     this.activeDashboards.set(clientId, new Set());
   }
@@ -61,10 +63,10 @@ export class DashboardGateway implements OnGatewayConnection, OnGatewayDisconnec
   handleDisconnect(@ConnectedSocket() client: Socket) {
     const clientId = client.id;
     this.logger.log(`Client disconnected: ${clientId}`);
-    
+
     // Client ke sabhi intervals clear karein
     this.stopAllLiveUpdatesForClient(clientId);
-    
+
     // Cleanup
     this.activeDashboards.delete(clientId);
   }
@@ -79,7 +81,7 @@ export class DashboardGateway implements OnGatewayConnection, OnGatewayDisconnec
   ) {
     const clientId = client.id;
     const { dashboard } = payload;
-    
+
     if (!dashboard) {
       client.emit('error', {
         message: 'Dashboard name is required',
@@ -88,28 +90,30 @@ export class DashboardGateway implements OnGatewayConnection, OnGatewayDisconnec
       return;
     }
 
-    this.logger.log(`Client ${clientId} starting live updates for ${dashboard}`);
-    
+    this.logger.log(
+      `Client ${clientId} starting live updates for ${dashboard}`,
+    );
+
     // Pehle existing interval stop karein is dashboard ke liye
     this.stopLiveUpdatesForDashboard(clientId, dashboard);
-    
+
     // Initial data bhejein
     await this.sendLiveDataToClient(client, dashboard);
-    
+
     // Every 12 seconds updates start karein
     const interval = setInterval(async () => {
       await this.sendLiveDataToClient(client, dashboard);
     }, 12000); // 12 seconds
-    
+
     // Interval store karein
     this.clientIntervals.set(`${clientId}_${dashboard}`, interval);
-    
+
     // Active dashboard add karein
     const dashboards = this.activeDashboards.get(clientId);
     if (dashboards) {
       dashboards.add(dashboard);
     }
-    
+
     client.emit('liveStarted', {
       dashboard,
       message: `Live updates started for ${dashboard}`,
@@ -128,7 +132,7 @@ export class DashboardGateway implements OnGatewayConnection, OnGatewayDisconnec
   ) {
     const clientId = client.id;
     const { dashboard } = payload;
-    
+
     if (dashboard) {
       // Specific dashboard stop karein
       this.stopLiveUpdatesForDashboard(clientId, dashboard);
@@ -151,17 +155,20 @@ export class DashboardGateway implements OnGatewayConnection, OnGatewayDisconnec
   @SubscribeMessage('getDashboard')
   async handleGetDashboard(
     @ConnectedSocket() client: Socket,
-    @MessageBody() payload: { 
-      dashboard: string; 
-      mode: 'live' | 'historic' | 'range'; 
-      start?: string; 
-      end?: string; 
+    @MessageBody()
+    payload: {
+      dashboard: string;
+      mode: 'live' | 'historic' | 'range';
+      start?: string;
+      end?: string;
     },
   ) {
     const { dashboard, mode, start, end } = payload;
-    
-    this.logger.log(`Client ${client.id} fetching ${dashboard} in ${mode} mode`);
-    
+
+    this.logger.log(
+      `Client ${client.id} fetching ${dashboard} in ${mode} mode`,
+    );
+
     try {
       const data = await this.dashboardService.getDashboardData(
         dashboard,
@@ -169,7 +176,7 @@ export class DashboardGateway implements OnGatewayConnection, OnGatewayDisconnec
         start,
         end,
       );
-      
+
       client.emit('dashboardData', {
         dashboard,
         mode,
@@ -192,7 +199,8 @@ export class DashboardGateway implements OnGatewayConnection, OnGatewayDisconnec
   @SubscribeMessage('getMultipleDashboards')
   async handleGetMultipleDashboards(
     @ConnectedSocket() client: Socket,
-    @MessageBody() payload: {
+    @MessageBody()
+    payload: {
       dashboards: string[];
       mode: 'live' | 'historic' | 'range';
       start?: string;
@@ -200,9 +208,11 @@ export class DashboardGateway implements OnGatewayConnection, OnGatewayDisconnec
     },
   ) {
     const { dashboards, mode, start, end } = payload;
-    
-    this.logger.log(`Client ${client.id} fetching ${dashboards.length} dashboards`);
-    
+
+    this.logger.log(
+      `Client ${client.id} fetching ${dashboards.length} dashboards`,
+    );
+
     try {
       const results = await this.dashboardService.getMultipleDashboards(
         dashboards,
@@ -210,7 +220,7 @@ export class DashboardGateway implements OnGatewayConnection, OnGatewayDisconnec
         start,
         end,
       );
-      
+
       client.emit('multipleDashboardsData', {
         dashboards,
         mode,
@@ -235,14 +245,14 @@ export class DashboardGateway implements OnGatewayConnection, OnGatewayDisconnec
         dashboard,
         'live',
       );
-      
+
       client.emit('liveUpdate', {
         dashboard,
         data,
         timestamp: new Date().toISOString(),
         serverTime: Date.now(),
       });
-      
+
       this.logger.debug(`Live update sent for ${dashboard} to ${client.id}`);
     } catch (error) {
       this.logger.error(`Error sending live update for ${dashboard}:`, error);
@@ -260,13 +270,15 @@ export class DashboardGateway implements OnGatewayConnection, OnGatewayDisconnec
   private stopLiveUpdatesForDashboard(clientId: string, dashboard: string) {
     const intervalKey = `${clientId}_${dashboard}`;
     const interval = this.clientIntervals.get(intervalKey);
-    
+
     if (interval) {
       clearInterval(interval);
       this.clientIntervals.delete(intervalKey);
-      this.logger.log(`Stopped live updates for ${dashboard} (client: ${clientId})`);
+      this.logger.log(
+        `Stopped live updates for ${dashboard} (client: ${clientId})`,
+      );
     }
-    
+
     // Active dashboard list se remove karein
     const dashboards = this.activeDashboards.get(clientId);
     if (dashboards) {
@@ -285,10 +297,10 @@ export class DashboardGateway implements OnGatewayConnection, OnGatewayDisconnec
         this.clientIntervals.delete(key);
       }
     }
-    
+
     // Active dashboards clear karein
     this.activeDashboards.delete(clientId);
-    
+
     this.logger.log(`Stopped all live updates for client: ${clientId}`);
   }
 
@@ -304,7 +316,7 @@ export class DashboardGateway implements OnGatewayConnection, OnGatewayDisconnec
         connectionTime: 'N/A', // Aap timestamp bhi store kar sakte hain
       }),
     );
-    
+
     client.emit('activeClients', {
       totalClients: activeClients.length,
       clients: activeClients,

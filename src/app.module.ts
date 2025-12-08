@@ -19,6 +19,7 @@ import { ReportsModule } from './reports/reports.module';
 import { GeneratorModule } from './generator/generator.module';
 import { NavyDataModule } from './navy-data/navy-data.module';
 import { ScheduleModule } from '@nestjs/schedule';
+import { StreamModule } from './stream/stream.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     // AlarmsModule,
     GeneratorModule,
     NavyDataModule,
+    StreamModule,
   ],
   controllers: [AppController],
   providers: [AppService, FormulasService],
