@@ -86,4 +86,5 @@ export const params = [
   'RPM_Stability_Index',
   'Oscillation_Index',
   'Fuel_Consumption',
+  'Genset_Run_SS'
 ];
