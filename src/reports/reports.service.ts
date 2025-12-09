@@ -278,8 +278,10 @@ export class ReportsService {
           totalProduction: { $sum: '$energyKWH' },
 
           // Load % ke liye raw fields push ho rahi hain
-          totalKWs: { $push: '$Genset_Total_kW' },
           ratings: { $push: '$Genset_Application_kW_Rating_PC2X' },
+          totalKWs: { $push: '$Genset_Total_kW' },
+          Genset_Total_kW: { $push: '$Genset_Total_kW' },
+         Fuel_Rate: { $push: '$Fuel_Rate' },
         },
       },
       { $sort: { _id: 1 } },
@@ -318,10 +320,22 @@ export class ReportsService {
         avgLoadPercent = loads.reduce((a, b) => a + b, 0) / loads.length;
       }
 
-      const producedPerLiter =
-        fuelConsumedLiters > 0
-          ? +(totalProduction / fuelConsumedLiters).toFixed(2)
-          : 0;
+      // const producedPerLiter =+(day.Genset_Total_kW / (day.Fuel_Rate * 3.7854)).toFixed(2);
+      let producedPerLiter = 0;
+
+if (day.Genset_Total_kW?.length && day.Fuel_Rate?.length) {
+  const feiList = day.Genset_Total_kW.map((kW: number, i: number) => {
+    const fuelRate = day.Fuel_Rate[i] ?? 0; // gallons/hour
+    if (!fuelRate) return 0;
+
+    const fuelRateLiters = fuelRate * 3.7854;
+    return +(kW / fuelRateLiters).toFixed(2);
+  });
+
+  const sum = feiList.reduce((a, b) => a + b, 0);
+  producedPerLiter = +(sum / feiList.length).toFixed(2);
+}
+
 
       // -----------------------------------------------------------------------
 

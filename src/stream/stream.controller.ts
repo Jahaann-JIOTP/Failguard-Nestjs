@@ -14,6 +14,66 @@ export class StreamController {
     console.log('✅ Stream Controller initialized with live collection');
   }
 
+  // ✅ NEW: Timezone conversion method for Pakistan (UTC+5)
+  private formatTimestampForPK(dateString: string): string {
+    try {
+      if (!dateString) {
+        return new Date().toISOString();
+      }
+
+      // Parse the incoming timestamp
+      const date = new Date(dateString);
+
+      if (isNaN(date.getTime())) {
+        console.warn('Invalid timestamp:', dateString);
+        return new Date().toISOString();
+      }
+
+      // Get current time in Pakistan (UTC+5)
+      const now = new Date();
+      const pkOffset = 5 * 60 * 60 * 1000; // +5 hours in milliseconds
+      const pkTime = new Date(now.getTime() + pkOffset);
+
+      // Format to ISO with +05:00 timezone
+      const year = pkTime.getUTCFullYear();
+      const month = String(pkTime.getUTCMonth() + 1).padStart(2, '0');
+      const day = String(pkTime.getUTCDate()).padStart(2, '0');
+      const hour = String(pkTime.getUTCHours()).padStart(2, '0');
+      const minute = String(pkTime.getUTCMinutes()).padStart(2, '0');
+      const second = String(pkTime.getUTCSeconds()).padStart(2, '0');
+
+      // Return in format: 2025-12-09T11:17:00+05:00
+      return `${year}-${month}-${day}T${hour}:${minute}:${second}+05:00`;
+    } catch (error) {
+      console.error('Error formatting timestamp:', error, dateString);
+
+      // Fallback: Use current Pakistan time
+      const now = new Date();
+      const pkOffset = 5 * 60 * 60 * 1000;
+      const pkTime = new Date(now.getTime() + pkOffset);
+      return pkTime.toISOString().replace('Z', '+05:00');
+    }
+  }
+
+  // ✅ NEW: Get current Pakistan time
+  private getCurrentPKTime(): { iso: string; local: string } {
+    const now = new Date();
+    const pkOffset = 5 * 60 * 60 * 1000; // +5 hours
+    const pkTime = new Date(now.getTime() + pkOffset);
+
+    const year = pkTime.getUTCFullYear();
+    const month = String(pkTime.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(pkTime.getUTCDate()).padStart(2, '0');
+    const hour = String(pkTime.getUTCHours()).padStart(2, '0');
+    const minute = String(pkTime.getUTCMinutes()).padStart(2, '0');
+    const second = String(pkTime.getUTCSeconds()).padStart(2, '0');
+
+    return {
+      iso: `${year}-${month}-${day}T${hour}:${minute}:${second}+05:00`,
+      local: `${day}/${month}/${year} ${hour}:${minute}:${second} PKT`,
+    };
+  }
+
   @Get('live')
   @Header('Content-Type', 'text/event-stream')
   @Header('Cache-Control', 'no-cache')
@@ -21,18 +81,22 @@ export class StreamController {
   async liveStream(@Res() res: Response) {
     console.log('📡 SSE Client connected - Live Dashboard');
 
+    // Get current Pakistan time
+    const currentPKTime = this.getCurrentPKTime();
+    console.log('🕐 Current Pakistan Time:', currentPKTime.local);
+
     // Set headers
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
     res.setHeader('Access-Control-Allow-Origin', '*');
 
-    // Send initial connection
+    // Send initial connection with PK time
     res.write('retry: 5000\n\n');
     res.write(
       'event: connected\ndata: {"status": "connected", "time": "' +
-        new Date().toISOString() +
-        '"}\n\n',
+        currentPKTime.iso +
+        '", "timezone": "Asia/Karachi (UTC+5)"}\n\n',
     );
 
     console.log(
@@ -44,17 +108,21 @@ export class StreamController {
     const sendUpdate = async () => {
       try {
         const startTime = Date.now();
+        const currentPKTime = this.getCurrentPKTime();
 
         // ✅ DEBUG: Check what's in the collection
         const totalDocs = await this.liveCollection.countDocuments();
         console.log(`📊 Total documents in live collection: ${totalDocs}`);
+        console.log(`🕐 Current PK Time: ${currentPKTime.local}`);
 
         if (totalDocs === 0) {
           console.warn('⚠️ Live collection is EMPTY!');
-          // Send test data for debugging
+          // Send test data for debugging with PK time
           const testData = {
             type: 'test-data',
-            timestamp: new Date().toISOString(),
+            timestamp: currentPKTime.iso,
+            serverTime: currentPKTime.local,
+            timezone: 'Asia/Karachi (UTC+5)',
             message: 'Live collection is empty, using test data',
             metrics: {
               load: 45.5,
@@ -120,7 +188,7 @@ export class StreamController {
         const queryTime = Date.now() - startTime;
 
         if (latest) {
-          console.log('✅ Found latest record:', {
+          console.log('📄 Latest record from DB:', {
             timestamp: latest.timestamp,
             runStatus: latest.Genset_Run_SS,
             load: latest.Genset_Total_kW,
@@ -137,10 +205,15 @@ export class StreamController {
                 ).toFixed(1)
               : 0;
 
+          // ✅ Use Pakistan time instead of database timestamp
+          const formattedTimestamp = currentPKTime.iso;
+
           const formattedData = {
             type: 'dashboard-update',
-            timestamp: latest.timestamp || new Date().toISOString(),
-            serverTime: new Date().toISOString(),
+            timestamp: formattedTimestamp, // ✅ Pakistan time
+            serverTime: currentPKTime.local, // ✅ Human readable PK time
+            timezone: 'Asia/Karachi (UTC+5)',
+            originalDbTimestamp: latest.timestamp, // Keep original for debugging
             queryTime: queryTime,
             recordFound: true,
             metrics: {
@@ -177,6 +250,13 @@ export class StreamController {
             },
           };
 
+          console.log('📤 Sending stream data:', {
+            timestamp: formattedData.timestamp,
+            serverTime: formattedData.serverTime,
+            load: formattedData.metrics.load,
+            rpm: formattedData.metrics.rpm,
+          });
+
           res.write(`data: ${JSON.stringify(formattedData)}\n\n`);
           console.log(`📤 Stream update sent in ${queryTime}ms`);
         } else {
@@ -196,8 +276,10 @@ export class StreamController {
 
             const formattedData = {
               type: 'dashboard-update',
-              timestamp: anyRecord.timestamp || new Date().toISOString(),
-              serverTime: new Date().toISOString(),
+              timestamp: currentPKTime.iso, // ✅ Use Pakistan time
+              serverTime: currentPKTime.local,
+              timezone: 'Asia/Karachi (UTC+5)',
+              originalDbTimestamp: anyRecord.timestamp,
               recordFound: true,
               isRunning: anyRecord.Genset_Run_SS >= 1,
               metrics: {
@@ -228,20 +310,28 @@ export class StreamController {
             console.log('📤 Sent data from non-running generator');
           } else {
             console.log('❌ No records found in live collection at all');
-            res.write(
-              'data: {"type": "no-data", "timestamp": "' +
-                new Date().toISOString() +
-                '", "message": "No records in live collection"}\n\n',
-            );
+            const errorData = {
+              type: 'no-data',
+              timestamp: currentPKTime.iso,
+              serverTime: currentPKTime.local,
+              timezone: 'Asia/Karachi (UTC+5)',
+              message: 'No records in live collection',
+            };
+            res.write(`data: ${JSON.stringify(errorData)}\n\n`);
           }
         }
       } catch (error) {
         console.error('❌ Stream error:', error);
-        res.write(
-          'event: error\ndata: {"type": "error", "message": "Database error: ' +
-            error.message +
-            '"}\n\n',
-        );
+        const currentPKTime = this.getCurrentPKTime();
+        const errorData = {
+          event: 'error',
+          data: {
+            type: 'error',
+            timestamp: currentPKTime.iso,
+            message: 'Database error: ' + error.message,
+          },
+        };
+        res.write(`data: ${JSON.stringify(errorData)}\n\n`);
       }
     };
 
@@ -253,8 +343,15 @@ export class StreamController {
 
     // Heartbeat every 30 seconds
     const heartbeatInterval = setInterval(() => {
-      res.write(': heartbeat\n\n');
-      console.log('💓 Heartbeat sent');
+      const currentPKTime = this.getCurrentPKTime();
+      const heartbeatData = {
+        type: 'heartbeat',
+        timestamp: currentPKTime.iso,
+        serverTime: currentPKTime.local,
+        timezone: 'Asia/Karachi (UTC+5)',
+      };
+      res.write(`data: ${JSON.stringify(heartbeatData)}\n\n`);
+      console.log('💓 Heartbeat sent at:', currentPKTime.local);
     }, 30000);
 
     // Client disconnect
