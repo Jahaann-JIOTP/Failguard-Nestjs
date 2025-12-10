@@ -15,7 +15,7 @@ import { TimestampUpdateModule } from './timestamp-update/timestamp-update.modul
 import { TrendsModule } from './trends/trends.module';
 import { FormulasService } from './trends/formulas.service';
 import { ReportsModule } from './reports/reports.module';
-// import { AlarmsModule } from './alarms/alarms.module';
+import { AlarmsModule } from './alarms/alarms.module';
 import { GeneratorModule } from './generator/generator.module';
 import { NavyDataModule } from './navy-data/navy-data.module';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -36,7 +36,7 @@ import { StreamModule } from './stream/stream.module';
     TimestampUpdateModule,
     TrendsModule,
     ReportsModule,
-    // AlarmsModule,
+    AlarmsModule,
     GeneratorModule,
     NavyDataModule,
     StreamModule,
