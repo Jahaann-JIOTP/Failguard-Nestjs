@@ -8,8 +8,6 @@ import { DashboardService } from './dashboard.service';
 export class DashboardController {
   constructor(private readonly dashboardService: DashboardService) {}
 
-
-
   @Get('test-websocket')
   @Render('websocket-test')
   testWebSocket() {
@@ -972,4 +970,60 @@ export class DashboardController {
   // ) {
   //   return this.dashboardService.getConsumptionMetrics(mode, start, end);
   // }
+
+  @Get('dashboard1')
+  async getDashboard1Live() {
+    return this.dashboardService.getDashboard1LiveLatest();
+  }
+
+  @Get('dashboard2')
+  async getDashboard2Live() {
+    return this.dashboardService.getDashboard2LiveLatest();
+  }
+
+  @Get('dashboard3')
+  async getDashboard3Live() {
+    return this.dashboardService.getDashboard3LiveLatest();
+  }
+
+  @Get('dashboard4')
+  async getDashboard4Live() {
+    return this.dashboardService.getDashboard4LiveLatest();
+  }
+
+  @Get('dashboard5')
+  async getDashboard5Live() {
+    return this.dashboardService.getDashboard5LiveLatest();
+  }
+
+  @Get('dashboard6')
+  async getDashboard6Live() {
+    return this.dashboardService.getDashboard6LiveLatest();
+  }
+
+  @Get('all')
+  async getAllDashboardsLive() {
+    const dashboards = [
+      'dashboard1',
+      'dashboard2',
+      'dashboard3',
+      'dashboard4',
+      'dashboard5',
+      'dashboard6',
+    ];
+    const results: Record<string, any> = {};
+
+    for (const dashboard of dashboards) {
+      try {
+        results[dashboard] = await this.dashboardService.getDashboardData(
+          dashboard,
+          'live',
+        );
+      } catch (error) {
+        results[dashboard] = { error: error.message };
+      }
+    }
+
+    return results;
+  }
 }

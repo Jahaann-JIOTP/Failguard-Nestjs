@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
@@ -27,7 +28,7 @@ export class DashboardService {
     private readonly formulas: FormulasService,
   ) {
     this.collection = this.db.collection('navy_12s');
-    this.liveCollection = this.db.collection('navy_12_live'); // ✅ ADD THIS LINE
+    this.liveCollection = this.db.collection('navy_12s'); // ✅ ADD THIS LINE
   }
 
   /** -------------------
@@ -2449,5 +2450,108 @@ export class DashboardService {
     ];
 
     return await this.collection.aggregate(pipeline).toArray();
+  }
+
+  /** -------------------
+   * OPTIMIZED LIVE DASHBOARD APIs - Latest single document
+   * ------------------- */
+
+  async getDashboard1LiveLatest() {
+    const config = this.dashboardConfigs['dashboard1'];
+    const latestDoc = await this.getLatestLiveDocument(config.projection);
+    return this.formatLiveResponse(latestDoc, config);
+  }
+
+  async getDashboard2LiveLatest() {
+    const config = this.dashboardConfigs['dashboard2'];
+    const latestDoc = await this.getLatestLiveDocument(config.projection);
+    return this.formatLiveResponse(latestDoc, config);
+  }
+
+  async getDashboard3LiveLatest() {
+    const config = this.dashboardConfigs['dashboard3'];
+    const latestDoc = await this.getLatestLiveDocument(config.projection);
+    return this.formatLiveResponse(latestDoc, config);
+  }
+
+  async getDashboard4LiveLatest() {
+    const config = this.dashboardConfigs['dashboard4'];
+    const latestDoc = await this.getLatestLiveDocument(config.projection);
+    return this.formatLiveResponse(latestDoc, config);
+  }
+
+  async getDashboard5LiveLatest() {
+    const config = this.dashboardConfigs['dashboard5'];
+    const latestDoc = await this.getLatestLiveDocument(config.projection);
+    return this.formatLiveResponse(latestDoc, config);
+  }
+
+  async getDashboard6LiveLatest() {
+    const config = this.dashboardConfigs['dashboard6'];
+    const latestDoc = await this.getLatestLiveDocument(config.projection);
+    return this.formatLiveResponse(latestDoc, config);
+  }
+
+  private async getLatestLiveDocument(projection: Record<string, number>) {
+    const ninetyMinutesAgo = new Date(Date.now() - 90 * 60 * 1000);
+
+    const pipeline = [
+      {
+        $match: {
+          timestamp: { $gte: ninetyMinutesAgo.toISOString() },
+          Genset_Run_SS: { $gte: 1 },
+        },
+      },
+      { $project: projection },
+      { $sort: { timestamp: -1 } },
+      { $limit: 1 },
+    ];
+
+    const result = await this.liveCollection.aggregate(pipeline).toArray();
+    return result.length > 0 ? result[0] : null;
+  }
+
+  private formatLiveResponse(latestDoc: any, config: DashboardConfig) {
+    if (!latestDoc) {
+      return {
+        metrics: {},
+        charts: {},
+        timestamp: new Date().toISOString(),
+        message: 'No live data available',
+      };
+    }
+
+    // Sirf latest metrics (charts ke liye array nahi, sirf latest values)
+    const metrics = config.metricsMapper(latestDoc, [], 'live');
+
+    // Charts ke liye sirf latest values as single point arrays
+    const chartsData = [
+      {
+        ...latestDoc,
+        timestamp: this.formatDateTimestamp(latestDoc.timestamp),
+      },
+    ];
+
+    const charts = config.chartsMapper(chartsData);
+
+    return {
+      metrics: this.removeZeroValuesButKeepImportant(metrics),
+      charts: this.convertChartsToLatestOnly(charts),
+      timestamp: latestDoc.timestamp,
+      formattedTimestamp: this.formatDateTimestamp(latestDoc.timestamp),
+    };
+  }
+
+  private convertChartsToLatestOnly(
+    charts: Record<string, any[]>,
+  ): Record<string, any[]> {
+    const result: Record<string, any[]> = {};
+
+    for (const [chartName, data] of Object.entries(charts)) {
+      // Agar data hai to sirf last point le lo
+      result[chartName] = data.length > 0 ? [data[data.length - 1]] : [];
+    }
+
+    return result;
   }
 }
