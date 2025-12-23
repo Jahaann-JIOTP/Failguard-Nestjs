@@ -68,11 +68,17 @@ export class TrendsService {
         'Genset_L3_Current',
       ],
       Power_Loss_Factor: ['Genset_Total_Power_Factor_calculated'],
-      Thermal_Stress: [
+      'I2 Heating': [
         'Genset_L1_Current',
         'Genset_L2_Current',
         'Genset_L3_Current',
         'Genset_Application_kW_Rating_PC2X',
+      ],
+      Thermal_Stress: [
+        'Coolant_Temperature',
+        // 'Genset_L2_Current',
+        // 'Genset_L3_Current',
+        // 'Genset_Application_kW_Rating_PC2X',
       ],
       RPM_Stability_Index: ['Averagr_Engine_Speed'],
       Oscillation_Index: ['Genset_Total_kW', 'Genset_Total_kVA'],
@@ -91,6 +97,22 @@ export class TrendsService {
       Fuel_Flow_Change: ['Fuel_Rate'],
       Coolant_TemperatureC: ['Coolant_Temperature'],
       Oil_TemperatureC: ['Oil_Temperature'],
+      Thermal_Efficiency: ['Genset_Total_kW', 'Fuel_Rate'],
+      'Phase-A Share': [
+        'Genset_L1_Current',
+        'Genset_L2_Current',
+        'Genset_L3_Current',
+      ],
+      'Phase-B Share': [
+        'Genset_L1_Current',
+        'Genset_L2_Current',
+        'Genset_L3_Current',
+      ],
+      'Phase-C Share': [
+        'Genset_L1_Current',
+        'Genset_L2_Current',
+        'Genset_L3_Current',
+      ],
       Load_Stress: [
         'Genset_Total_KVA',
         'Genset_Application_kVA_Rating_PC2X',
@@ -175,9 +197,25 @@ export class TrendsService {
           case 'Power_Loss_Factor':
             value = this.formulasService.calculatePowerLossFactor(doc);
             break;
-          case 'Thermal_Stress':
+          case 'I2 Heating':
             value = this.formulasService.calculateThermalStress(doc);
             break;
+          case 'Thermal_Stress':
+            value = this.formulasService.calculateThermalStressC(doc);
+            break;
+          case 'Thermal_Efficiency':
+            value = this.formulasService.calculateThermalEfficiency(doc);
+            break;
+          case 'Phase-A Share':
+            value = this.formulasService.calculateL1LoadSharing(doc);
+            break;
+          case 'Phase-B Share':
+            value = this.formulasService.calculateL2LoadSharing(doc);
+            break;
+          case 'Phase-C Share':
+            value = this.formulasService.calculateL3LoadSharing(doc);
+            break;
+
           case 'Load_Stress':
             value = this.formulasService.calculateLoadStress(doc);
             break;

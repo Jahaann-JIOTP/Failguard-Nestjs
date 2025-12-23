@@ -517,66 +517,7 @@ export class FormulasService {
     return +((avg - 1500) / 1500).toFixed(3);
   }
 
-  calculateElectricalStress(doc: any): number {
-    // Voltage Unbalance (VU)
-    const VL1 = doc.Genset_L1L2_Voltage ?? 0;
-    const VL2 = doc.Genset_L2L3_Voltage ?? 0;
-    const VL3 = doc.Genset_L3L1_Voltage ?? 0;
-    const Vavg = (VL1 + VL2 + VL3) / 3 || 1;
-    const VmaxDev =
-      (Math.max(
-        Math.abs(VL1 - Vavg),
-        Math.abs(VL2 - Vavg),
-        Math.abs(VL3 - Vavg),
-      ) /
-        Vavg) *
-      100;
-    const VU = Math.min(1, VmaxDev / 2); // 2% typical limit
-
-    // Current Unbalance (CU)
-    const IA = doc.Genset_L1_Current ?? 0;
-    const IB = doc.Genset_L2_Current ?? 0;
-    const IC = doc.Genset_L3_Current ?? 0;
-    const Iavg = (IA + IB + IC) / 3 || 1;
-    const ImaxDev =
-      (Math.max(Math.abs(IA - Iavg), Math.abs(IB - Iavg), Math.abs(IC - Iavg)) /
-        Iavg) *
-      100;
-    const CU = Math.min(1, ImaxDev / 10); // 10% typical limit
-
-    // Overload Index (OL)
-    const Inom = doc.Genset_Application_Nominal_Current_PC2X ?? 1;
-    const IpuA = IA / Inom;
-    const IpuB = IB / Inom;
-    const IpuC = IC / Inom;
-    const OL = Math.min(1, Math.max(IpuA, IpuB, IpuC) - 1);
-
-    // Power Factor Index (PFI)
-    const pf = doc.Genset_Total_Power_Factor_calculated ?? 1;
-    const pf_nom = 0.8; // datasheet value
-    const PFI = Math.min(1, (pf_nom - pf) / 0.1);
-
-    // Frequency Index (FI)
-    const freq = doc.Genset_Frequency ?? 50;
-    const deltaF = Math.abs(freq - 50);
-    const FI = Math.min(1, (deltaF * 100) / 50);
-
-    // Torque Index (TI)
-    const torquePct = doc.Percent_Engine_Torque_or_Duty_Cycle ?? 0; // 0–100
-    const TI = Math.min(1, torquePct / 100);
-
-    // Weighted Electrical Stress Index
-    const ESI =
-      0.2 * VU + 0.2 * CU + 0.25 * OL + 0.15 * PFI + 0.1 * FI + 0.1 * TI;
-    const ESI_percent = +(ESI * 100).toFixed(2);
-
-    return ESI_percent;
-  }
-
   // calculateElectricalStress(doc: any): number {
-  //   // Helper to ensure a value is between 0 and 1
-  //   const clamp = (value: number) => Math.max(0, Math.min(1, value));
-
   //   // Voltage Unbalance (VU)
   //   const VL1 = doc.Genset_L1L2_Voltage ?? 0;
   //   const VL2 = doc.Genset_L2L3_Voltage ?? 0;
@@ -590,7 +531,7 @@ export class FormulasService {
   //     ) /
   //       Vavg) *
   //     100;
-  //   const VU = clamp(VmaxDev / 2); // 2% typical limit
+  //   const VU = Math.min(1, VmaxDev / 2); // 2% typical limit
 
   //   // Current Unbalance (CU)
   //   const IA = doc.Genset_L1_Current ?? 0;
@@ -601,25 +542,28 @@ export class FormulasService {
   //     (Math.max(Math.abs(IA - Iavg), Math.abs(IB - Iavg), Math.abs(IC - Iavg)) /
   //       Iavg) *
   //     100;
-  //   const CU = clamp(ImaxDev / 10); // 10% typical limit
+  //   const CU = Math.min(1, ImaxDev / 10); // 10% typical limit
 
   //   // Overload Index (OL)
   //   const Inom = doc.Genset_Application_Nominal_Current_PC2X ?? 1;
-  //   const OL = clamp(Math.max(IA, IB, IC) / Inom - 1); // capped 0–1
+  //   const IpuA = IA / Inom;
+  //   const IpuB = IB / Inom;
+  //   const IpuC = IC / Inom;
+  //   const OL = Math.min(1, Math.max(IpuA, IpuB, IpuC) - 1);
 
   //   // Power Factor Index (PFI)
   //   const pf = doc.Genset_Total_Power_Factor_calculated ?? 1;
   //   const pf_nom = 0.8; // datasheet value
-  //   const PFI = clamp((pf_nom - pf) / 0.1);
+  //   const PFI = Math.min(1, (pf_nom - pf) / 0.1);
 
   //   // Frequency Index (FI)
   //   const freq = doc.Genset_Frequency ?? 50;
   //   const deltaF = Math.abs(freq - 50);
-  //   const FI = clamp((deltaF * 100) / 50);
+  //   const FI = Math.min(1, (deltaF * 100) / 50);
 
   //   // Torque Index (TI)
   //   const torquePct = doc.Percent_Engine_Torque_or_Duty_Cycle ?? 0; // 0–100
-  //   const TI = clamp(torquePct / 100);
+  //   const TI = Math.min(1, torquePct / 100);
 
   //   // Weighted Electrical Stress Index
   //   const ESI =
@@ -628,6 +572,39 @@ export class FormulasService {
 
   //   return ESI_percent;
   // }
+
+  calculateElectricalStress(doc: any): number {
+    // Extract currents
+    const IA = doc.Genset_L1_Current || 0;
+    const IB = doc.Genset_L2_Current || 0;
+    const IC = doc.Genset_L3_Current || 0;
+
+    // Current Imbalance
+    const Iavg = (IA + IB + IC) / 3 || 1;
+    const Iunb = (Math.max(IA, IB, IC) - Math.min(IA, IB, IC)) / Iavg;
+
+    // Extract voltages
+    const VAN = doc.Genset_L1N_Voltage || 0;
+    const VBN = doc.Genset_L2N_Voltage || 0;
+    const VCN = doc.Genset_L3N_Voltage || 0;
+
+    // Voltage Imbalance
+    const Vavg = (VAN + VBN + VCN) / 3 || 1;
+    const Vunb = (Math.max(VAN, VBN, VCN) - Math.min(VAN, VBN, VCN)) / Vavg;
+
+    // Total Power
+    const P1 = doc.Genset_1_KW || 0;
+    const P2 = doc.Genset_2_KW || 0;
+    const P3 = doc.Genset_3_KW || 0;
+    const Ptotal = P1 + P2 + P3;
+
+    const Prated = doc.Genset_Rated_KW || 400; // fallback 400 kW
+
+    // Electrical Stress Index
+    const ESI = 0.5 * (Ptotal / Prated) + 0.25 * Vunb + 0.25 * Iunb;
+
+    return +ESI.toFixed(3); // return value 0–1
+  }
 
   calculateThermalEfficiency(doc: any): number {
     const fuelRate = doc.Fuel_Rate ?? 0; // gallons per hour
@@ -676,5 +653,32 @@ export class FormulasService {
         Production_kWh: +cumulative.toFixed(2), // interval production
       };
     });
+  }
+
+  calculateL1LoadSharing(doc: any): number {
+    const IA = doc.Genset_L1_Current || 0;
+    const IB = doc.Genset_L2_Current || 0;
+    const IC = doc.Genset_L3_Current || 0;
+
+    const total = IA + IB + IC || 1;
+    return +((IA / total) * 100).toFixed(2);
+  }
+
+  calculateL2LoadSharing(doc: any): number {
+    const IA = doc.Genset_L1_Current || 0;
+    const IB = doc.Genset_L2_Current || 0;
+    const IC = doc.Genset_L3_Current || 0;
+
+    const total = IA + IB + IC || 1;
+    return +((IB / total) * 100).toFixed(2);
+  }
+
+  calculateL3LoadSharing(doc: any): number {
+    const IA = doc.Genset_L1_Current || 0;
+    const IB = doc.Genset_L2_Current || 0;
+    const IC = doc.Genset_L3_Current || 0;
+
+    const total = IA + IB + IC || 1;
+    return +((IC / total) * 100).toFixed(2);
   }
 }

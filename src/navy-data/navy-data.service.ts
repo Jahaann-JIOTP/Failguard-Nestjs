@@ -7,10 +7,10 @@ export class NavyDataService {
   private tmuaibnCollection;
 
   constructor(@Inject('MONGO_CLIENT') private readonly db: Db) {
-    this.navyCollection = this.db.collection('navy_30_S_predicted');
+    this.navyCollection = this.db.collection('basic_ml_predicted_12s');
     this.navyCollection.createIndex({ timestamp: 1 });
 
-    this.tmuaibnCollection = this.db.collection('navy_30_S');
+    this.tmuaibnCollection = this.db.collection('navy_12s');
     this.tmuaibnCollection.createIndex({ timestamp: 1 });
   }
 

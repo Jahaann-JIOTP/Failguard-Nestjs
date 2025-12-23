@@ -6,6 +6,9 @@ export const params = [
   'Genset_L2_Current',
   'Genset_L3_Current',
   'Genset_Avg_Current',
+  'Phase-A Share',
+  'Phase-B Share',
+  'Phase-C Share',
   'Neutral_Current',
   'Current_Imbalance',
   'Genset_Application_Nominal_Current_PC2x',
@@ -87,4 +90,6 @@ export const params = [
   'Oscillation_Index',
   'VHz_Knee_Frequency',
   'VHz_Rolloff_Slope',
+  'I2 Heating',
+  'Thermal_Efficiency',
 ];

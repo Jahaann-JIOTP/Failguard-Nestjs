@@ -28,7 +28,7 @@ export class DashboardService {
     private readonly formulas: FormulasService,
   ) {
     this.collection = this.db.collection('navy_12s');
-    this.liveCollection = this.db.collection('navy_12s'); // ✅ ADD THIS LINE
+    this.liveCollection = this.db.collection('raw_on_12s'); // ✅ ADD THIS LINE
   }
 
   /** -------------------
@@ -158,6 +158,19 @@ export class DashboardService {
         'Genset_Total_kW',
         'Genset_Total_kVA',
         'Genset_Application_kVA_Rating_PC2X',
+        'Genset_L1_kW',
+        'Genset_L2_kW',
+        'Genset_L3_kW',
+        'Genset_L1N_Voltage',
+        'Genset_L2N_Voltage',
+        'Genset_L3N_Voltage',
+        'Genset_L1L2_Voltage',
+        'Genset_L2L3_Voltage',
+        'Genset_L3L1_Voltage',
+        'Genset_L1_Current',
+        'Genset_L2_Current',
+        'Genset_L3_Current',
+        'Genset_Rated_KW',
       ]),
       metricsMapper: (doc: any, data?: any[], mode?: string) =>
         this.mapMetricsDashboard6WithMode(doc, data || [], mode || 'live'),

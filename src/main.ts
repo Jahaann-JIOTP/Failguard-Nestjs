@@ -22,8 +22,7 @@ async function bootstrap() {
       'http://110.39.23.106:3053',
       'https://ee601cedb676.ngrok-free.app',
       'http://110.39.23.108:3003',
-      'http://122.129.85.222:3003',
-      'https://5452dddd8088.ngrok-free.app',
+      'http://122.129.85.222:3003'
     ],
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
     credentials: true,
