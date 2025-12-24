@@ -304,6 +304,8 @@ export class ReportsService {
     this.collection.createIndex({ timestamp: 1 });
   }
 
+  // fuel report
+
   async getFuelReport(payload: {
     startDate: string;
     endDate: string;
