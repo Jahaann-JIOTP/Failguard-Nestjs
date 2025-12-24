@@ -512,9 +512,39 @@ export class FormulasService {
     return results;
   }
 
+  // calculateMechanicalStress(doc: any): number {
+  //   const avg = doc.Averagr_Engine_Speed ?? 0;
+  //   return +((avg - 1500) / 1500).toFixed(3);
+  // }
+
+  private lastTorque: number | null = null;
+
   calculateMechanicalStress(doc: any): number {
-    const avg = doc.Averagr_Engine_Speed ?? 0;
-    return +((avg - 1500) / 1500).toFixed(3);
+    const engineSpeed = doc.Average_Engine_Speed ?? 1500;
+    const torque = doc.Percent_Engine_Torque_or_Duty_Cycle ?? 0;
+
+    // ---------- C1 ----------
+    const C1 = Math.abs(engineSpeed - 1500) / 1500;
+
+    // ---------- C2 ----------
+    const C2 = torque / 100;
+
+    // ---------- C3 (Derived ΔT from torque samples) ----------
+    let deltaT = 0;
+
+    if (this.lastTorque !== null) {
+      deltaT = Math.abs(torque - this.lastTorque);
+    }
+
+    this.lastTorque = torque; // store for next cycle
+
+    const deltaTMax = 20;
+    const C3 = deltaT / deltaTMax;
+
+    // ---------- MSI ----------
+    const MSI = 0.2 * C1 + 0.5 * C2 + 0.3 * C3;
+
+    return +MSI.toFixed(3);
   }
 
   // calculateElectricalStress(doc: any): number {

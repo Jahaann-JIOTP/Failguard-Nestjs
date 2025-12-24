@@ -171,6 +171,7 @@ export class DashboardService {
         'Genset_L2_Current',
         'Genset_L3_Current',
         'Genset_Rated_KW',
+        'Percent_Engine_Torque ',
       ]),
       metricsMapper: (doc: any, data?: any[], mode?: string) =>
         this.mapMetricsDashboard6WithMode(doc, data || [], mode || 'live'),
@@ -815,72 +816,106 @@ export class DashboardService {
     };
   }
 
-  private calculateRunningHoursWithMinutes(data: any[]): {
-    hours: number;
-    minutes: number;
-    totalHours: string;
-  } {
-    if (data.length === 0) return { hours: 0, minutes: 0, totalHours: '0:00' };
+  // private calculateRunningHours(data: any[]): number {
+  //   if (!data?.length) return 0;
 
-    const runningHoursField = 'Engine_Running_Time_calculated';
-    const runningHoursValues = data
-      .map((d) => d[runningHoursField])
-      .filter(
-        (val) => val !== undefined && val !== null && !isNaN(val) && val >= 0,
-      );
+  //   // Filter only entries where genset was ON
+  //   const runData = data.filter((d) => d.Genset_Run_SS >= 1);
+  //   if (!runData.length) return 0;
 
-    if (runningHoursValues.length === 0) {
-      return { hours: 0, minutes: 0, totalHours: '0:00' };
-    }
+  //   // Sort by timestamp
+  //   const sortedData = runData.sort(
+  //     (a, b) =>
+  //       new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
+  //   );
 
-    const firstValue = runningHoursValues[0];
-    const lastValue = runningHoursValues[runningHoursValues.length - 1];
-    const totalHoursDecimal = Math.max(0, lastValue - firstValue);
+  //   const startTime = new Date(sortedData[0].timestamp).getTime();
+  //   const endTime = new Date(
+  //     sortedData[sortedData.length - 1].timestamp,
+  //   ).getTime();
 
-    // console.log(
-    //   `Running hours calculation: FIRST=${firstValue}, LAST=${lastValue}, DIFF=${totalHoursDecimal}`,
-    // );
+  //   // Calculate hours from timestamp difference (same as report)
+  //   let runHours = (endTime - startTime) / (1000 * 60 * 60);
 
-    return this.convertToHoursMinutes(totalHoursDecimal);
-  }
+  //   // Agar single record hai to 0.25 hours (15 min) assume karein (report ke hisaab se)
+  //   if (runHours === 0 && sortedData.length === 1) {
+  //     runHours = 0.25;
+  //   }
+
+  //   return +runHours.toFixed(2);
+  // }
 
   private calculateRunningHours(data: any[]): number {
-    if (data.length === 0) return 0;
+    if (!data?.length) return 0;
 
-    // console.log('=== DEBUG: Running Hours Calculation ===');
+    // Filter genset ON records
+    const runData = data.filter((d) => d.Genset_Run_SS >= 1);
+    if (!runData.length) return 0;
 
-    const runningHoursField = 'Engine_Running_Time_calculated';
+    // Group into periods (15 minute gap - same as report)
+    const periods = this.groupIntoPeriods(runData, 15);
 
-    // Check if field exists
-    if (!(runningHoursField in data[0])) {
-      // console.log(`❌ ${runningHoursField} not found in data`);
-      return 0;
+    // Calculate total hours from all periods (SAME AS REPORT)
+    let totalHours = 0;
+
+    periods.forEach((period) => {
+      if (period.length === 0) return;
+
+      const startTime = new Date(period[0].timestamp).getTime();
+      const endTime = new Date(period[period.length - 1].timestamp).getTime();
+
+      let periodHours = (endTime - startTime) / (1000 * 60 * 60);
+
+      // Handle single record (15 min = 0.25 hours - SAME AS REPORT)
+      if (periodHours === 0 && period.length === 1) {
+        periodHours = 0.25;
+      }
+
+      totalHours += periodHours;
+    });
+
+    return +totalHours.toFixed(2);
+  }
+
+  private groupIntoPeriods(data: any[], gapMinutes: number = 15): any[] {
+    if (!data.length) return [];
+
+    // Sort by timestamp
+    const sortedData = data.sort(
+      (a, b) =>
+        new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
+    );
+
+    const periods: any[] = [];
+    let currentPeriod: any[] = [sortedData[0]];
+
+    for (let i = 1; i < sortedData.length; i++) {
+      const current = sortedData[i];
+      const prev = sortedData[i - 1];
+
+      const diffMinutes =
+        (new Date(current.timestamp).getTime() -
+          new Date(prev.timestamp).getTime()) /
+        (1000 * 60);
+
+      if (diffMinutes > gapMinutes) {
+        // New period
+        if (currentPeriod.length > 0) {
+          periods.push(currentPeriod);
+        }
+        currentPeriod = [current];
+      } else {
+        // Same period
+        currentPeriod.push(current);
+      }
     }
 
-    const runningHoursValues = data
-      .map((d) => d[runningHoursField])
-      .filter(
-        (val) => val !== undefined && val !== null && !isNaN(val) && val >= 0,
-      );
-
-    // console.log(`Valid ${runningHoursField} values:`, runningHoursValues);
-
-    if (runningHoursValues.length >= 2) {
-      const maxRunningHours = Math.max(...runningHoursValues);
-      const minRunningHours = Math.min(...runningHoursValues);
-      const calculatedRunningHours = maxRunningHours - minRunningHours;
-
-      // console.log(
-      //   `Running hours: MAX=${maxRunningHours}, MIN=${minRunningHours}, DIFF=${calculatedRunningHours}`,
-      // );
-      return +calculatedRunningHours.toFixed(2);
+    // Add last period
+    if (currentPeriod.length > 0) {
+      periods.push(currentPeriod);
     }
 
-    if (runningHoursValues.length === 1) {
-      return +runningHoursValues[0].toFixed(2);
-    }
-
-    return 0;
+    return periods;
   }
 
   /** -------------------
@@ -1289,6 +1324,64 @@ export class DashboardService {
     return localDate;
   }
 
+  // private buildAggregationPipeline(
+  //   mode: string,
+  //   projection: Record<string, number>,
+  //   start?: string,
+  //   end?: string,
+  // ): any[] {
+  //   const pipeline: any[] = [];
+  //   const matchStage: any = {};
+
+  //   console.log('=== BUILDING PIPELINE ===');
+  //   console.log('Mode:', mode);
+  //   console.log('Received dates:', { start, end });
+
+  //   if ((mode === 'historic' || mode === 'range') && start && end) {
+  //     let startISO = start;
+  //     let endISO = end;
+
+  //     // Agar sirf date hai (2025-11-18) to +05:00 add kar do
+  //     if (!start.includes('T')) {
+  //       startISO = `${start}T00:00:00+05:00`;
+  //       endISO = `${end}T23:59:59.999+05:00`;
+  //     }
+
+  //     // Agar end time 00:00:00 hai to 23:59:59 bana do
+  //     if (endISO.includes('T00:00:00') && !endISO.includes('23:59')) {
+  //       const datePart = endISO.split('T')[0];
+  //       endISO = `${datePart}T23:59:59.999+05:00`;
+  //     }
+
+  //     matchStage.timestamp = {
+  //       $gte: startISO,
+  //       $lte: endISO,
+  //     };
+
+  //     if (mode === 'range') {
+  //       matchStage.Genset_Run_SS = { $gte: 1 };
+  //     }
+
+  //     console.log('Final +05:00 Range (Direct String Compare):');
+  //     console.log('  $gte →', startISO);
+  //     console.log('  $lte →', endISO);
+  //   } else if (mode === 'live') {
+  //     const ninetyMinutesAgo = new Date(Date.now() - 90 * 60 * 1000);
+  //     matchStage.timestamp = { $gte: ninetyMinutesAgo.toISOString() };
+  //     console.log('Live mode → Last 90 minutes (UTC OK)');
+  //   }
+
+  //   if (Object.keys(matchStage).length > 0) {
+  //     pipeline.push({ $match: matchStage });
+  //   }
+
+  //   pipeline.push({ $project: projection });
+  //   pipeline.push({ $sort: { timestamp: 1 } });
+
+  //   console.log('Pipeline built successfully with +05:00 direct comparison');
+  //   return pipeline;
+  // }
+
   private buildAggregationPipeline(
     mode: string,
     projection: Record<string, number>,
@@ -1331,9 +1424,13 @@ export class DashboardService {
       console.log('  $gte →', startISO);
       console.log('  $lte →', endISO);
     } else if (mode === 'live') {
-      const ninetyMinutesAgo = new Date(Date.now() - 90 * 60 * 1000);
-      matchStage.timestamp = { $gte: ninetyMinutesAgo.toISOString() };
-      console.log('Live mode → Last 90 minutes (UTC OK)');
+      const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000);
+      matchStage.timestamp = { $gte: sixHoursAgo.toISOString() };
+
+      // ✅ YEH LINE ADD KARAIN - Live mode ke liye Genset_Run_SS condition
+      matchStage.Genset_Run_SS = { $gte: 1 };
+
+      console.log('Live mode → Last 6 hours with Genset_Run_SS >= 1');
     }
 
     if (Object.keys(matchStage).length > 0) {
@@ -1346,68 +1443,6 @@ export class DashboardService {
     console.log('Pipeline built successfully with +05:00 direct comparison');
     return pipeline;
   }
-
-  //   private buildAggregationPipeline(
-  //   mode: string,
-  //   projection: Record<string, number>,
-  //   start?: string,
-  //   end?: string,
-  // ): any[] {
-  //   const pipeline: any[] = [];
-  //   const matchStage: any = {};
-
-  //   console.log('=== BUILDING PIPELINE ===');
-  //   console.log('Mode:', mode);
-  //   console.log('Received dates:', { start, end });
-
-  //   if ((mode === 'historic' || mode === 'range') && start && end) {
-  //     let startISO = start;
-  //     let endISO = end;
-
-  //     // Agar sirf date hai (2025-11-18) to +05:00 add kar do
-  //     if (!start.includes('T')) {
-  //       startISO = `${start}T00:00:00+05:00`;
-  //       endISO = `${end}T23:59:59.999+05:00`;
-  //     }
-
-  //     // Agar end time 00:00:00 hai to 23:59:59 bana do
-  //     if (endISO.includes('T00:00:00') && !endISO.includes('23:59')) {
-  //       const datePart = endISO.split('T')[0];
-  //       endISO = `${datePart}T23:59:59.999+05:00`;
-  //     }
-
-  //     matchStage.timestamp = {
-  //       $gte: startISO,
-  //       $lte: endISO,
-  //     };
-
-  //     if (mode === 'range') {
-  //       matchStage.Genset_Run_SS = { $gte: 1 };
-  //     }
-
-  //     console.log('Final +05:00 Range (Direct String Compare):');
-  //     console.log('  $gte →', startISO);
-  //     console.log('  $lte →', endISO);
-  //   } else if (mode === 'live') {
-  //     const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000);
-  //     matchStage.timestamp = { $gte: sixHoursAgo.toISOString() };
-
-  //     // ✅ YEH LINE ADD KARAIN - Live mode ke liye Genset_Run_SS condition
-  //     matchStage.Genset_Run_SS = { $gte: 1 };
-
-  //     console.log('Live mode → Last 6 hours with Genset_Run_SS >= 1');
-  //   }
-
-  //   if (Object.keys(matchStage).length > 0) {
-  //     pipeline.push({ $match: matchStage });
-  //   }
-
-  //   pipeline.push({ $project: projection });
-  //   pipeline.push({ $sort: { timestamp: 1 } });
-
-  //   console.log('Pipeline built successfully with +05:00 direct comparison');
-  //   return pipeline;
-  // }
 
   /** -------------------
    * Date Timestamp Formatter
@@ -1615,6 +1650,20 @@ export class DashboardService {
       'Genset_Total_Power_Factor_calculated',
       'Genset_Total_KVA',
       'Genset_Application_kVA_Rating_PC2X',
+      'Genset_L1_kW',
+      'Genset_L2_kW',
+      'Genset_L3_kW',
+      'Genset_L1N_Voltage',
+      'Genset_L2N_Voltage',
+      'Genset_L3N_Voltage',
+      'Genset_L1L2_Voltage',
+      'Genset_L2L3_Voltage',
+      'Genset_L3L1_Voltage',
+      'Genset_L1_Current',
+      'Genset_L2_Current',
+      'Genset_L3_Current',
+      'Genset_Rated_KW',
+      'Percent_Engine_Torque ',
     ],
     lossesThermalStress: ['PowerLossFactor', 'I2'],
     frequencyRegulationEffectiveness: [
