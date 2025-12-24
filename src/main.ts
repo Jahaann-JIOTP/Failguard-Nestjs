@@ -15,14 +15,8 @@ async function bootstrap() {
   app.enableCors({
     origin: [
       'http://localhost:3000',
-      'http://192.168.2.245:3000',
-      'http://192.168.2.174:3000',
-      'http://192.168.3.58:3000',
-      'http://110.39.23.107:3000',
-      'http://110.39.23.106:3053',
-      'https://ee601cedb676.ngrok-free.app',
-      'http://110.39.23.108:3003',
-      'http://122.129.85.222:3003',
+      'https://pn.jahaann.com',
+      'http://pn.jahaann.com',
     ],
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
     credentials: true,
@@ -37,9 +31,9 @@ async function bootstrap() {
   );
   console.log('🕓 Current Time:', moment().format('YYYY-MM-DD HH:mm:ss Z'));
 
-  await app.listen(process.env.PORT ?? 5000);
-  Logger.log('🚀 Application running on http://localhost:5000');
-  Logger.log(`📡 WebSocket running on: ws://localhost:5000/live-dashboard`);
+  await app.listen(process.env.PORT ?? 5003);
+  Logger.log('🚀 Application running on http://localhost:5003');
+  Logger.log(`📡 WebSocket running on: ws://localhost:5003/live-dashboard`);
 }
 
 bootstrap();
