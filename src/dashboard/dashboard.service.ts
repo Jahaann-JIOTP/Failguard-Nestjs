@@ -1265,25 +1265,148 @@ export class DashboardService {
     }
   }
 
-  private mapMetricsDashboard6WithMode(doc: any, data: any[], mode: string) {
+  // private mapMetricsDashboard6WithMode(doc: any, data: any[], mode: string) {
+  //   if (mode === 'live') {
+  //     return {
+  //       totalFuelConsumption: doc.Total_Fuel_Consumption_calculated ?? 0,
+  //       energyKWh: this.formulas.calculateEnergy(doc)[0]?.Energy_kWh ?? 0,
+  //       fuelConsumptionCurrentRun: doc.Fuel_Consumption_Current_Run ?? 0,
+  //     };
+  //   } else {
+  //     const metricsConfig = {
+  //       totalFuelConsumption: (d: any) =>
+  //         d.Total_Fuel_Consumption_calculated ?? 0,
+  //       // ✅ FIX: Make this a function that takes a document parameter
+  //       // energyKWh: (d: any) =>
+  //       //   this.formulas.calculateEnergy(d)[0]?.Energy_kWh ?? 0,
+  //       fuelConsumptionCurrentRun: (d: any) =>
+  //         d.Fuel_Consumption_Current_Run ?? 0,
+  //     };
+
+  //     return this.calculateAverageMetrics(data, metricsConfig);
+  //   }
+  // }
+
+  private mapMetricsDashboard6WithMode(
+    doc: any,
+    data: any[],
+    mode: string,
+  ): Record<string, any> {
+    console.log('=== DASHBOARD 6 PRODUCTION CALCULATION ===');
+    console.log('Total data points:', data.length);
+
+    // ✅ SABHI DATA POINTS KA TOTAL PRODUCTION (Report wala formula)
+    let totalProductionKWh = 0;
+    let totalFuelConsumption = 0;
+    let runningHours = 0;
+
+    if (data.length > 0) {
+      // 1. TOTAL PRODUCTION: Genset_Total_kW × 0.000833 × (sabhi data points)
+      totalProductionKWh = data.reduce((sum, record) => {
+        const kW = record.Genset_Total_kW || 0;
+        const productionPerRecord = kW * 0.000833;
+        return sum + productionPerRecord;
+      }, 0);
+
+      console.log('Production per record formula: kW × 0.000833');
+      console.log('Example: 100 kW × 0.000833 = 0.0833 kWh per record');
+
+      // 2. TOTAL FUEL CONSUMPTION (Report wala formula)
+      const fuelValues = data
+        .map((d) => d.Total_Fuel_Consumption_calculated)
+        .filter((val) => val !== undefined && val !== null && !isNaN(val));
+
+      if (fuelValues.length >= 2) {
+        const maxFuel = Math.max(...fuelValues);
+        const minFuel = Math.min(...fuelValues);
+        totalFuelConsumption = maxFuel - minFuel;
+      }
+
+      // 3. RUNNING HOURS
+      runningHours = this.calculateRunningHours(data);
+
+      // Debug print
+      // console.log('=== CALCULATION RESULTS ===');
+      // console.log(`Data points: ${data.length}`);
+      // console.log(`Total Production: ${totalProductionKWh.toFixed(2)} kWh`);
+      // console.log(
+      //   `Total Fuel Consumed: ${totalFuelConsumption.toFixed(2)} gallons`,
+      // );
+      // console.log(`Running Hours: ${runningHours.toFixed(2)} hours`);
+
+      // First 3 records check
+      //   console.log('First 3 records production:');
+      //   for (let i = 0; i < Math.min(3, data.length); i++) {
+      //     const kW = data[i].Genset_Total_kW || 0;
+      //     const production = kW * 0.000833;
+      //     console.log(`  Record ${i}: ${kW} kW → ${production.toFixed(4)} kWh`);
+      //   }
+    }
+
     if (mode === 'live') {
+      // Live mode: Latest record values
+      const latest = doc;
+      const instantProduction = (latest.Genset_Total_kW || 0) * 0.000833;
+
       return {
-        totalFuelConsumption: doc.Total_Fuel_Consumption_calculated ?? 0,
-        energyKWh: this.formulas.calculateEnergy(doc)[0]?.Energy_kWh ?? 0,
-        fuelConsumptionCurrentRun: doc.Fuel_Consumption_Current_Run ?? 0,
+        // ✅ TOTAL PRODUCTION (SABHI DATA POINTS KA)
+        totalProductionKWh: +totalProductionKWh.toFixed(2),
+
+        // Instant/Current values
+        instantProductionKWh: +instantProduction.toFixed(4),
+        currentPowerKW: latest.Genset_Total_kW || 0,
+
+        // Fuel metrics
+        totalFuelConsumptionGallons: +totalFuelConsumption.toFixed(2),
+        totalFuelConsumptionLiters: +(totalFuelConsumption * 3.7854).toFixed(2),
+        fuelConsumptionCurrentRun: latest.Fuel_Consumption_Current_Run ?? 0,
+
+        // Time metrics
+        runningHours: +runningHours.toFixed(2),
+        runningHoursFormatted:
+          this.convertToHoursMinutes(runningHours).totalHours,
+
+        // Efficiency
+        specificFuelConsumption:
+          totalFuelConsumption > 0
+            ? +(totalFuelConsumption / totalProductionKWh).toFixed(4)
+            : 0,
       };
     } else {
+      // Historic/Range mode
       const metricsConfig = {
-        totalFuelConsumption: (d: any) =>
-          d.Total_Fuel_Consumption_calculated ?? 0,
-        // ✅ FIX: Make this a function that takes a document parameter
-        energyKWh: (d: any) =>
-          this.formulas.calculateEnergy(d)[0]?.Energy_kWh ?? 0,
+        // These will be averages
+        // currentPowerKW: (d: any) => d.Genset_Total_kW || 0,
+        // instantProductionKWh: (d: any) => (d.Genset_Total_kW || 0) * 0.000833,
         fuelConsumptionCurrentRun: (d: any) =>
           d.Fuel_Consumption_Current_Run ?? 0,
       };
 
-      return this.calculateAverageMetrics(data, metricsConfig);
+      const averages = this.calculateAverageMetrics(data, metricsConfig);
+
+      // ✅ RETURN BOTH: AVERAGES + TOTALS
+      return {
+        // Averages (for charts, trends)
+        ...averages,
+
+        // ✅ TOTALS (Report ke hisaab se - SABHI DATA POINTS KA)
+        energyKWh: +totalProductionKWh.toFixed(2),
+        // totalFuelConsumptionGallons: +totalFuelConsumption.toFixed(2),
+        // totalFuelConsumptionLiters: +(totalFuelConsumption * 3.7854).toFixed(2),
+        runningHours: +runningHours.toFixed(2),
+        runningHoursFormatted:
+          this.convertToHoursMinutes(runningHours).totalHours,
+
+        // Efficiency metrics
+        fuelEfficiencyIndex:
+          totalFuelConsumption > 0
+            ? +(totalProductionKWh / (totalFuelConsumption * 3.7854)).toFixed(2)
+            : 0,
+        specificFuelConsumption:
+          totalProductionKWh > 0
+            ? +((totalFuelConsumption * 3.7854) / totalProductionKWh).toFixed(4)
+            : 0,
+      };
     }
   }
 
@@ -2044,195 +2167,6 @@ export class DashboardService {
     this.setCache(cacheKey, metrics);
     return metrics;
   }
-
-  // private calculateConsumptionMetrics(
-  //   data: any[],
-  //   mode: string,
-  //   start?: string,
-  //   end?: string,
-  // ): {
-  //   totalConsumption: number;
-  //   totalConsumptionCurrentRun: number;
-  //   energy: number;
-  //   powerFactorStats: { max: number; min: number };
-  // } {
-  //   if (data.length === 0) {
-  //     return {
-  //       totalConsumption: 0,
-  //       totalConsumptionCurrentRun: 0,
-  //       energy: 0,
-  //       powerFactorStats: { max: 0, min: 0 },
-  //     };
-  //   }
-
-  //   // 1. Calculate Power Factor Stats
-  //   const powerFactorValues = data
-  //     .map((d) => d.Genset_Total_Power_Factor_calculated)
-  //     .filter((val) => val !== undefined && val !== null && !isNaN(val));
-
-  //   const powerFactorStats = {
-  //     max: powerFactorValues.length > 0 ? Math.max(...powerFactorValues) : 0,
-  //     min: powerFactorValues.length > 0 ? Math.min(...powerFactorValues) : 0,
-  //   };
-
-  //   // 2. Calculate Total Consumption (MAX - MIN of Total_Fuel_Consumption_calculated)
-  //   const totalConsumptionValues = data
-  //     .map((d) => d.Total_Fuel_Consumption_calculated)
-  //     .filter((val) => val !== undefined && val !== null && !isNaN(val));
-
-  //   let totalConsumption = 0;
-  //   if (totalConsumptionValues.length >= 2) {
-  //     const maxValue = Math.max(...totalConsumptionValues);
-  //     const minValue = Math.min(...totalConsumptionValues);
-  //     totalConsumption = Math.max(0, maxValue - minValue);
-  //   } else if (totalConsumptionValues.length === 1) {
-  //     totalConsumption = totalConsumptionValues[0];
-  //   }
-
-  //   // 3. Calculate Total Consumption Current Run
-  //   let totalConsumptionCurrentRun = 0;
-
-  //   console.log('=== DEBUG CURRENT RUN CALCULATION ===');
-  //   console.log(`Mode: ${mode}, Start: ${start}, End: ${end}`);
-
-  //   // ✅ CHANGED: Use range logic for BOTH range and historic modes
-  //   if ((mode === 'range' || mode === 'historic') && end) {
-  //     // Filter data for only END DATE
-  //     const endDateData = this.filterDataForEndDateOnly(data, end);
-
-  //     console.log(`End date data filtered: ${endDateData.length} records`);
-
-  //     if (endDateData.length > 0) {
-  //       console.log('End date data sample timestamps:');
-  //       endDateData.slice(0, 3).forEach((d, i) => {
-  //         console.log(
-  //           `  ${i + 1}. ${d.timestamp} - Fuel: ${d.Total_Fuel_Consumption_calculated}`,
-  //         );
-  //       });
-
-  //       const currentRunValues = endDateData
-  //         .map((d) => d.Total_Fuel_Consumption_calculated)
-  //         .filter((val) => val !== undefined && val !== null && !isNaN(val));
-
-  //       console.log(
-  //         `Valid fuel values in end date: ${currentRunValues.length}`,
-  //       );
-
-  //       if (currentRunValues.length >= 2) {
-  //         const firstValue = currentRunValues[0];
-  //         const lastValue = currentRunValues[currentRunValues.length - 1];
-  //         totalConsumptionCurrentRun = Math.max(0, lastValue - firstValue);
-  //         console.log(
-  //           `Current Run Calculation: LAST=${lastValue}, FIRST=${firstValue}, DIFF=${totalConsumptionCurrentRun}`,
-  //         );
-  //       } else if (currentRunValues.length === 1) {
-  //         totalConsumptionCurrentRun = currentRunValues[0];
-  //         console.log(
-  //           `Current Run Single Value: ${totalConsumptionCurrentRun}`,
-  //         );
-  //       } else {
-  //         console.log('No valid fuel values found in end date data');
-  //       }
-  //     } else {
-  //       console.log('No end date data found after filtering');
-  //     }
-  //   } else {
-  //     // For live mode only, use normal calculation
-  //     const currentRunValues = data
-  //       .map((d) => d.Total_Fuel_Consumption_calculated)
-  //       .filter((val) => val !== undefined && val !== null && !isNaN(val));
-
-  //     if (currentRunValues.length >= 2) {
-  //       const firstValue = currentRunValues[0];
-  //       const lastValue = currentRunValues[currentRunValues.length - 1];
-  //       totalConsumptionCurrentRun = Math.max(0, lastValue - firstValue);
-  //     } else if (currentRunValues.length === 1) {
-  //       totalConsumptionCurrentRun = currentRunValues[0];
-  //     }
-  //   }
-
-  //   // ✅ Convert gallons to liters
-  //   const totalConsumptionLiters = totalConsumption * 3.7854;
-  //   const totalConsumptionCurrentRunLiters =
-  //     totalConsumptionCurrentRun * 3.7854;
-
-  //   // 4. Calculate Energy
-  //   const energyData = this.formulas.calculateEnergy(data);
-  //   let energy = 0;
-
-  //   if (energyData.length > 0) {
-  //     const lastEnergyRecord = energyData[energyData.length - 1];
-  //     energy = lastEnergyRecord.Cumulative_Energy_kWh || 0;
-  //   }
-
-  //   console.log('=== FINAL CONSUMPTION METRICS ===');
-  //   console.log(
-  //     `Total Consumption: ${totalConsumptionLiters.toFixed(2)} liters`,
-  //   );
-  //   console.log(
-  //     `Current Run Consumption: ${totalConsumptionCurrentRunLiters.toFixed(2)} liters`,
-  //   );
-  //   console.log(`Energy: ${energy}`);
-
-  //   return {
-  //     totalConsumption: +totalConsumptionLiters.toFixed(2),
-  //     totalConsumptionCurrentRun: +totalConsumptionCurrentRunLiters.toFixed(2),
-  //     energy: +energy.toFixed(2),
-  //     powerFactorStats: {
-  //       max: +powerFactorStats.max.toFixed(4),
-  //       min: +powerFactorStats.min.toFixed(4),
-  //     },
-  //   };
-  // }
-
-  // private filterDataForEndDateOnly(data: any[], endDate: string): any[] {
-  //   try {
-  //     console.log(`Filtering for end date (RAW): ${endDate}`);
-
-  //     // ✅ Convert incoming date to pure UTC date string (YYYY-MM-DD)
-  //     const targetUTCDate = new Date(endDate).toISOString().split('T')[0];
-
-  //     console.log(`Target UTC date: ${targetUTCDate}`);
-
-  //     const filteredData = data.filter((d) => {
-  //       if (!d.timestamp) return false;
-
-  //       // ✅ Safely parse timestamp (works with ISO strings + Date objects)
-  //       const recordDate = new Date(d.timestamp);
-
-  //       if (isNaN(recordDate.getTime())) {
-  //         console.log(`Invalid timestamp: ${d.timestamp}`);
-  //         return false;
-  //       }
-
-  //       // ✅ Convert record timestamp to UTC date string
-  //       const recordUTCDate = recordDate.toISOString().split('T')[0];
-
-  //       return recordUTCDate === targetUTCDate;
-  //     });
-
-  //     console.log(`Filtered ${filteredData.length} records for end UTC date`);
-
-  //     if (filteredData.length > 0) {
-  //       console.log('First 3 filtered records:');
-  //       filteredData.slice(0, 3).forEach((item, index) => {
-  //         console.log(
-  //           `  ${index + 1}. ${item.timestamp} - ${item.Total_Fuel_Consumption_calculated}`,
-  //         );
-  //       });
-  //     } else {
-  //       console.log('No records found for end UTC date. Sample timestamps:');
-  //       data.slice(0, 5).forEach((item, index) => {
-  //         console.log(`  ${index + 1}. ${item.timestamp}`);
-  //       });
-  //     }
-
-  //     return filteredData;
-  //   } catch (error) {
-  //     console.error('Error filtering end date data:', error);
-  //     return [];
-  //   }
-  // }
 
   private calculateConsumptionMetrics(
     data: any[],
