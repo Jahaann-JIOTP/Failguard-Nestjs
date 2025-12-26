@@ -88,8 +88,8 @@ export const params = [
   'Thermal_Stress',
   'Electrical_Stress',
   'Oscillation_Index',
-  'VHz_Knee_Frequency',
-  'VHz_Rolloff_Slope',
+  // 'VHz_Knee_Frequency',
+  // 'VHz_Rolloff_Slope',
   'I2 Heating',
   'Thermal_Efficiency',
 ];
