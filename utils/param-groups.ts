@@ -62,9 +62,9 @@ export const params = [
   'Fuel_Consumption',
   'Fuel_Flow_Change',
   'Fuel_Rate',
-  'Specific_Fuel_Consumption',
   'Fuel_Efficiency_Index',
-  'Total_Fuel_Consumption_Calculated',
+  // 'Specific_Fuel_Consumption',
+  // 'Total_Fuel_Consumption_Calculated',
 
   // OTHER
   'Genset_L1_Power_Factor_PC2x',
@@ -84,8 +84,8 @@ export const params = [
   'Load_Percent',
   'Lubrication_Risk_Index',
   'Mechanical_Stress_Index',
-  'Load_Stress',
-  'Thermal_Stress',
+  'Load_Stress_Index',
+  'Thermal_Stress_Index',
   'Electrical_Stress_Index',
   'Oscillation_Index',
   // 'VHz_Knee_Frequency',

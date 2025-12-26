@@ -74,7 +74,7 @@ export class TrendsService {
         'Genset_L3_Current',
         'Genset_Application_kW_Rating_PC2X',
       ],
-      Thermal_Stress: [
+      Thermal_Stress_Index: [
         'Coolant_Temperature',
         // 'Genset_L2_Current',
         // 'Genset_L3_Current',
@@ -91,7 +91,7 @@ export class TrendsService {
       Air_Fuel_Effectiveness: ['Air_Flow', 'Fuel_Rate'],
       Specific_Fuel_Consumption: ['Genset_Total_kW', 'Fuel_Rate'],
       Heat_Rate: ['Fuel_Rate', 'Genset_Total_kW'],
-      Mechanical_Stress: ['Averagr_Engine_Speed'],
+      Mechanical_Stress_Index: ['Averagr_Engine_Speed'],
       Cooling_Margin: ['Coolant_Temperature', 'Oil_Temperature'],
       OTSR: ['Oil_Temperature', 'Coolant_Temperature'],
       Fuel_Flow_Change: ['Fuel_Rate'],
@@ -113,10 +113,26 @@ export class TrendsService {
         'Genset_L2_Current',
         'Genset_L3_Current',
       ],
-      Load_Stress: [
+      Load_Stress_Index: [
         'Genset_Total_KVA',
         'Genset_Application_kVA_Rating_PC2X',
         'Genset_Total_Power_Factor_calculated',
+      ],
+      Electrical_Stress_Index: [
+        'Genset_L1_kW',
+        'Genset_L2_kW',
+        'Genset_L3_kW',
+        'Genset_L1N_Voltage',
+        'Genset_L2N_Voltage',
+        'Genset_L3N_Voltage',
+        'Genset_L1L2_Voltage',
+        'Genset_L2L3_Voltage',
+        'Genset_L3L1_Voltage',
+        'Genset_L1_Current',
+        'Genset_L2_Current',
+        'Genset_L3_Current',
+        'Genset_Rated_KW',
+        'Percent_Engine_Torque ',
       ],
     };
 
@@ -200,7 +216,7 @@ export class TrendsService {
           case 'I2 Heating':
             value = this.formulasService.calculateThermalStress(doc);
             break;
-          case 'Thermal_Stress':
+          case 'Thermal_Stress_Index':
             value = this.formulasService.calculateThermalStressC(doc);
             break;
           case 'Thermal_Efficiency':
@@ -216,7 +232,7 @@ export class TrendsService {
             value = this.formulasService.calculateL3LoadSharing(doc);
             break;
 
-          case 'Load_Stress':
+          case 'Load_Stress_Index':
             value = this.formulasService.calculateLoadStress(doc);
             break;
           case 'Lubrication_Risk_Index':
@@ -237,8 +253,11 @@ export class TrendsService {
           case 'Oil_TemperatureC':
             value = this.formulasService.convertOilTempToCelsius(doc);
             break;
-          case 'Mechanical_Stress':
+          case 'Mechanical_Stress_Index':
             value = this.formulasService.calculateMechanicalStress(doc);
+            break;
+          case 'Electrical_Stress_Index':
+            value = this.formulasService.calculateElectricalStress(doc);
             break;
           case 'Cooling_Margin':
             value = this.formulasService.calculateCoolingMarginF(doc);
