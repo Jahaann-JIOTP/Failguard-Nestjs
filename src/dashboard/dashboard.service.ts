@@ -1910,8 +1910,8 @@ export class DashboardService {
     charts.frequencyRegulationEffectiveness = data.map((d) => ({
       time: d.timestamp,
       Genset_Frequency_OP_calculated: d.Genset_Frequency_OP_calculated ?? null,
-      Frequency_Deviation_Rad: d.Averagr_Engine_Speed ?? null,
-      Frequency_Deviation_Rad1:  this.formulas.calculateFrequencyDeviationAbs(d),
+      // Frequency_Deviation_Rad: d.Averagr_Engine_Speed ?? null,
+      Frequency_Deviation_Rad:  this.formulas.calculateFrequencyDeviationAbs(d),
     }));
 
     return charts;
