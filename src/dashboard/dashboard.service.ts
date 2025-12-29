@@ -240,137 +240,7 @@ export class DashboardService {
     return results;
   }
 
-  //   private async fetchDashboardData(
-  //   mode: 'live' | 'historic' | 'range',
-  //   config: DashboardConfig,
-  //   start?: string,
-  //   end?: string,
-  // ) {
-  //   const pipeline = this.buildAggregationPipeline(
-  //     mode,
-  //     config.projection,
-  //     start,
-  //     end,
-  //   );
-
-  //   console.log('Executing pipeline for mode:', mode);
-  //   console.log('Date range:', { start, end });
-
-  //   const data = await this.collection.aggregate(pipeline).toArray();
-
-  //   console.log(
-  //     `Fetched ${data.length} records from database for mode: ${mode}`,
-  //   );
-
-  //   this.logDataValidation(data, mode, config.projection);
-
-  //   if (!data.length) {
-  //     console.log('No data found for query:', { mode, start, end });
-  //     return {
-  //       metrics: mode === 'range' ? { onDurationMinutes: 0 } : {},
-  //       charts: {},
-  //     };
-  //   }
-
-  //   let formattedData;
-  //   if (mode === 'historic') {
-  //     formattedData = data.map((doc) => ({
-  //       ...this.fillMissingFieldsWithZero(doc, config.projection),
-  //       timestamp: this.formatDateTimestamp(doc.timestamp),
-  //     }));
-  //   } else {
-  //     formattedData = data.map((doc) => ({
-  //       ...doc,
-  //       timestamp: this.formatDateTimestamp(doc.timestamp),
-  //     }));
-  //   }
-
-  //   const latest = formattedData[formattedData.length - 1];
-  //   const metricsData = mode === 'live' ? [] : formattedData;
-  //   let metrics = config.metricsMapper(latest, metricsData, mode);
-
-  //   // ✅ FIXED: Use consistent running hours calculation
-  //   let runningHoursDecimal;
-  //   let runningHoursWithMinutes;
-
-  //   if (mode === 'live') {
-  //     runningHoursDecimal = latest.Engine_Running_Time_calculated || 0;
-  //     runningHoursWithMinutes = this.convertToHoursMinutes(runningHoursDecimal);
-  //     console.log(
-  //       `Live mode - Running hours: ${runningHoursDecimal} = ${runningHoursWithMinutes.totalHours}`,
-  //     );
-  //   } else {
-  //     // For historic/range mode, calculate from data
-  //     runningHoursDecimal = this.calculateRunningHours(formattedData);
-  //     runningHoursWithMinutes = this.convertToHoursMinutes(runningHoursDecimal);
-  //     console.log(
-  //       `Historic/Range mode - Running hours: ${runningHoursDecimal} = ${runningHoursWithMinutes.totalHours}`,
-  //     );
-  //   }
-
-  //   // ✅ UPDATED: Total Fuel Consumed calculation (MAX - MIN) and convert to liters
-  //   let totalFuelConsumed;
-  //   let totalFuelConsumedLiters;
-  //   if (mode === 'live') {
-  //     totalFuelConsumed = latest.Total_Fuel_Consumption_calculated || 0;
-  //     totalFuelConsumedLiters = totalFuelConsumed * 3.7854;
-  //     console.log(
-  //       `Live mode - Total Fuel Consumed from latest: ${totalFuelConsumed} gallons = ${totalFuelConsumedLiters} liters`,
-  //     );
-  //   } else {
-  //     totalFuelConsumed = this.calculateTotalFuelConsumed(formattedData);
-  //     totalFuelConsumedLiters = totalFuelConsumed * 3.7854;
-  //     console.log(
-  //       `Historic/Range mode - Total Fuel Consumed: ${totalFuelConsumed.toFixed(2)} gallons = ${totalFuelConsumedLiters.toFixed(2)} liters`,
-  //     );
-  //   }
-
-  //   // ✅ UPDATED: Fuel Consumed Current Run calculation - PASS END DATE
-  //   let fuelConsumedCurrentRun;
-  //   let fuelConsumedCurrentRunLiters;
-  //   if (mode === 'live') {
-  //     fuelConsumedCurrentRun = latest.Total_Fuel_Consumption_calculated || 0;
-  //     fuelConsumedCurrentRunLiters = fuelConsumedCurrentRun * 3.7854;
-  //     console.log(
-  //       `Live mode - Fuel Consumed Current Run from latest: ${fuelConsumedCurrentRun} gallons = ${fuelConsumedCurrentRunLiters} liters`,
-  //     );
-  //   } else {
-  //     // ✅ PASS END DATE TO CALCULATION
-  //     fuelConsumedCurrentRun = this.calculateFuelConsumedCurrentRun(formattedData, end);
-  //     fuelConsumedCurrentRunLiters = fuelConsumedCurrentRun * 3.7854;
-
-  //     console.log('=== FUEL CONSUMPTION SUMMARY ===');
-  //     console.log(`📅 Date range: ${start} to ${end}`);
-  //     console.log(`⛽ Total Fuel Consumed (MAX-MIN): ${totalFuelConsumed.toFixed(2)} gallons = ${totalFuelConsumedLiters.toFixed(2)} liters`);
-  //     console.log(`⛽ Fuel Consumed Current Run (END DATE): ${fuelConsumedCurrentRun.toFixed(2)} gallons = ${fuelConsumedCurrentRunLiters.toFixed(2)} liters`);
-  //   }
-
-  //   // ✅ FIXED: Use consistent running hours values
-  //   metrics = {
-  //     ...metrics,
-  //     runningHours: +runningHoursDecimal.toFixed(2), // Keep the decimal value
-  //     runningHoursH: runningHoursWithMinutes.hours,
-  //     runningHoursM: runningHoursWithMinutes.minutes,
-  //     totalHours: runningHoursWithMinutes.totalHours, // Use the formatted "H:MM" value
-  //     fuelConsumed: +totalFuelConsumedLiters.toFixed(2),
-  //     fuelConsumedCurrentRun: +fuelConsumedCurrentRunLiters.toFixed(2),
-  //   };
-
-  //   if (mode === 'range') {
-  //     metrics = {
-  //       ...metrics,
-  //       onDurationMinutes: this.calculateOnDurationDate(formattedData),
-  //     };
-  //   }
-
-  //   // ✅ UPDATED: Remove zero values but keep important metrics
-  //   metrics = this.removeZeroValuesButKeepImportant(metrics);
-
-  //   return {
-  //     metrics,
-  //     charts: config.chartsMapper(formattedData),
-  //   };
-  // }
+ 
 
   private async fetchDashboardData(
     mode: 'live' | 'historic' | 'range',
@@ -533,148 +403,7 @@ export class DashboardService {
     };
   }
 
-  // private async fetchDashboardData(
-  //   mode: 'live' | 'historic' | 'range',
-  //   config: DashboardConfig,
-  //   start?: string,
-  //   end?: string,
-  // ) {
-  //   const pipeline = this.buildAggregationPipeline(
-  //     mode,
-  //     config.projection,
-  //     start,
-  //     end,
-  //   );
-
-  //   console.log('Executing pipeline for mode:', mode);
-  //   console.log('Date range:', { start, end });
-
-  //   // ✅ USE DIFFERENT COLLECTION BASED ON MODE
-  //   let collectionToUse;
-  //   if (mode === 'live') {
-  //     collectionToUse = this.liveCollection;
-  //   } else {
-  //     collectionToUse = this.collection;
-  //   }
-
-  //   const data = await collectionToUse.aggregate(pipeline).toArray();
-
-  //   console.log(
-  //     `Fetched ${data.length} records from ${mode === 'live' ? 'live' : 'historical'} collection for mode: ${mode}`,
-  //   );
-
-  //   this.logDataValidation(data, mode, config.projection);
-
-  //   if (!data.length) {
-  //     console.log('No data found for query:', { mode, start, end });
-  //     return {
-  //       metrics: mode === 'range' ? { onDurationMinutes: 0 } : {},
-  //       charts: {},
-  //     };
-  //   }
-
-  //   let formattedData;
-  //   if (mode === 'historic') {
-  //     formattedData = data.map((doc) => ({
-  //       ...this.fillMissingFieldsWithZero(doc, config.projection),
-  //       timestamp: this.formatDateTimestamp(doc.timestamp),
-  //     }));
-  //   } else {
-  //     formattedData = data.map((doc) => ({
-  //       ...doc,
-  //       timestamp: this.formatDateTimestamp(doc.timestamp),
-  //     }));
-  //   }
-
-  //   const latest = formattedData[formattedData.length - 1];
-  //   const metricsData = mode === 'live' ? [] : formattedData;
-  //   let metrics = config.metricsMapper(latest, metricsData, mode);
-
-  //   // ✅ FIXED: Use consistent running hours calculation
-  //   let runningHoursDecimal;
-  //   let runningHoursWithMinutes;
-
-  //   if (mode === 'live') {
-  //     runningHoursDecimal = latest.Engine_Running_Time_calculated || 0;
-  //     runningHoursWithMinutes = this.convertToHoursMinutes(runningHoursDecimal);
-  //     console.log(
-  //       `Live mode - Running hours: ${runningHoursDecimal} = ${runningHoursWithMinutes.totalHours}`,
-  //     );
-  //   } else {
-  //     // For historic/range mode, calculate from data
-  //     runningHoursDecimal = this.calculateRunningHours(formattedData);
-  //     runningHoursWithMinutes = this.convertToHoursMinutes(runningHoursDecimal);
-  //     console.log(
-  //       `Historic/Range mode - Running hours: ${runningHoursDecimal} = ${runningHoursWithMinutes.totalHours}`,
-  //     );
-  //   }
-
-  //   // ✅ UPDATED: Total Fuel Consumed calculation (MAX - MIN) and convert to liters
-  //   let totalFuelConsumed;
-  //   let totalFuelConsumedLiters;
-  //   if (mode === 'live') {
-  //     totalFuelConsumed = latest.Total_Fuel_Consumption_calculated || 0;
-  //     totalFuelConsumedLiters = totalFuelConsumed * 3.7854;
-  //     console.log(
-  //       `Live mode - Total Fuel Consumed from latest: ${totalFuelConsumed} gallons = ${totalFuelConsumedLiters} liters`,
-  //     );
-  //   } else {
-  //     totalFuelConsumed = this.calculateTotalFuelConsumed(formattedData);
-  //     totalFuelConsumedLiters = totalFuelConsumed * 3.7854;
-  //     console.log(
-  //       `Historic/Range mode - Total Fuel Consumed: ${totalFuelConsumed.toFixed(2)} gallons = ${totalFuelConsumedLiters.toFixed(2)} liters`,
-  //     );
-  //   }
-
-  //   // ✅ UPDATED: Fuel Consumed Current Run calculation - PASS END DATE
-  //   let fuelConsumedCurrentRun;
-  //   let fuelConsumedCurrentRunLiters;
-  //   if (mode === 'live') {
-  //     fuelConsumedCurrentRun = latest.Total_Fuel_Consumption_calculated || 0;
-  //     fuelConsumedCurrentRunLiters = fuelConsumedCurrentRun * 3.7854;
-  //     console.log(
-  //       `Live mode - Fuel Consumed Current Run from latest: ${fuelConsumedCurrentRun} gallons = ${fuelConsumedCurrentRunLiters} liters`,
-  //     );
-  //   } else {
-  //     // ✅ PASS END DATE TO CALCULATION
-  //     fuelConsumedCurrentRun = this.calculateFuelConsumedCurrentRun(formattedData, end);
-  //     fuelConsumedCurrentRunLiters = fuelConsumedCurrentRun * 3.7854;
-
-  //     console.log('=== FUEL CONSUMPTION SUMMARY ===');
-  //     console.log(`📅 Date range: ${start} to ${end}`);
-  //     console.log(`⛽ Total Fuel Consumed (MAX-MIN): ${totalFuelConsumed.toFixed(2)} gallons = ${totalFuelConsumedLiters.toFixed(2)} liters`);
-  //     console.log(`⛽ Fuel Consumed Current Run (END DATE): ${fuelConsumedCurrentRun.toFixed(2)} gallons = ${fuelConsumedCurrentRunLiters.toFixed(2)} liters`);
-  //   }
-
-  //   // ✅ FIXED: Use consistent running hours values
-  //   metrics = {
-  //     ...metrics,
-  //     runningHours: +runningHoursDecimal.toFixed(2), // Keep the decimal value
-  //     runningHoursH: runningHoursWithMinutes.hours,
-  //     runningHoursM: runningHoursWithMinutes.minutes,
-  //     totalHours: runningHoursWithMinutes.totalHours, // Use the formatted "H:MM" value
-  //     fuelConsumed: +totalFuelConsumedLiters.toFixed(2),
-  //     fuelConsumedCurrentRun: +fuelConsumedCurrentRunLiters.toFixed(2),
-  //     totalHours1: totalHoursFormatted.totalHours,        // e.g., "125:30"
-  //   totalHoursDecimal: +totalHoursDecimal.toFixed(2),  // e.g., 125.50
-  //   };
-
-  //   if (mode === 'range') {
-  //     metrics = {
-  //       ...metrics,
-  //       onDurationMinutes: this.calculateOnDurationDate(formattedData),
-  //     };
-  //   }
-
-  //   // ✅ UPDATED: Remove zero values but keep important metrics
-  //   metrics = this.removeZeroValuesButKeepImportant(metrics);
-
-  //   return {
-  //     metrics,
-  //     charts: config.chartsMapper(formattedData),
-  //   };
-  // }
-
+ 
   /** -------------------
    * UPDATED: Fuel Consumed Current Run calculation - ONLY END DATE
    * ------------------- */
@@ -1088,30 +817,78 @@ export class DashboardService {
   /** -------------------
    * NEW: Calculate Average for Historic and Range Modes
    * ------------------- */
+  // private calculateAverageMetrics(
+  //   data: any[],
+  //   metricsConfig: any,
+  // ): Record<string, number> {
+  //   const averages: Record<string, number> = {};
+
+  //   for (const [key, calculator] of Object.entries(metricsConfig)) {
+  //     // ✅ FIX: Type assertion for calculator function
+  //     const calcFunc = calculator as (doc: any) => number;
+
+  //     const values = data
+  //       .map((doc) => calcFunc(doc))
+  //       .filter((val) => val !== null && val !== undefined);
+
+  //     if (values.length > 0) {
+  //       const sum = values.reduce((acc, val) => acc + val, 0);
+  //       averages[key] = +(sum / values.length).toFixed(2);
+  //     } else {
+  //       averages[key] = 0;
+  //     }
+  //   }
+
+  //   return averages;
+  // }
+
   private calculateAverageMetrics(
-    data: any[],
-    metricsConfig: any,
-  ): Record<string, number> {
-    const averages: Record<string, number> = {};
+  data: any[],
+  metricsConfig: any,
+): Record<string, number> {
+  const averages: Record<string, number> = {};
 
-    for (const [key, calculator] of Object.entries(metricsConfig)) {
-      // ✅ FIX: Type assertion for calculator function
-      const calcFunc = calculator as (doc: any) => number;
+  console.log(`📊 Calculating averages from ${data.length} records`);
 
-      const values = data
-        .map((doc) => calcFunc(doc))
-        .filter((val) => val !== null && val !== undefined);
-
-      if (values.length > 0) {
-        const sum = values.reduce((acc, val) => acc + val, 0);
-        averages[key] = +(sum / values.length).toFixed(2);
-      } else {
-        averages[key] = 0;
+  for (const [key, calculator] of Object.entries(metricsConfig)) {
+    const calcFunc = calculator as (doc: any) => number;
+    
+    // ✅ Collect ONLY valid numbers from ON records
+    const validValues: number[] = [];
+    
+    data.forEach((doc, index) => {
+      try {
+        // ✅ Check if genset is ON for meaningful calculations
+        const isGensetOn = doc.Genset_Run_SS >= 1;
+        
+        if (isGensetOn) {
+          const value = calcFunc(doc);
+          
+          // ✅ STRICT validation: must be finite number
+          if (typeof value === 'number' && 
+              !isNaN(value) && 
+              isFinite(value)) {
+            validValues.push(value);
+          }
+        }
+      } catch (error) {
+        // Skip failed calculations
       }
+    });
+    
+    // ✅ Calculate average ONLY with valid values
+    if (validValues.length > 0) {
+      const sum = validValues.reduce((a, b) => a + b, 0);
+      averages[key] = +(sum / validValues.length).toFixed(2);
+      console.log(`   ${key}: ${averages[key]} (from ${validValues.length} ON records)`);
+    } else {
+      averages[key] = 0;
+      console.log(`   ${key}: 0 (no valid ON records)`);
     }
-
-    return averages;
   }
+
+  return averages;
+}
 
   /** -------------------
    * UPDATED: Metrics Mapping with Mode Support
