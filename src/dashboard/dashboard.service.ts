@@ -78,6 +78,7 @@ export class DashboardService {
         'Genset_L3N_Voltage',
         'Genset_Total_KVA',
         'Genset_Total_Power_Factor_calculated',
+        'Genset_Frequency_OP_calculated',
         'Genset_Application_kVA_Rating_PC2X',
         'I2Rated',
         ...this.getDashboard1Fields(),
@@ -1910,6 +1911,7 @@ export class DashboardService {
       time: d.timestamp,
       Genset_Frequency_OP_calculated: d.Genset_Frequency_OP_calculated ?? null,
       Frequency_Deviation_Rad: d.Averagr_Engine_Speed ?? null,
+      Frequency_Deviation_Rad1:  this.formulas.calculateFrequencyDeviationAbs(d),
     }));
 
     return charts;

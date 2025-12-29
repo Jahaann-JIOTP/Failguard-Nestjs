@@ -711,4 +711,21 @@ export class FormulasService {
     const total = IA + IB + IC || 1;
     return +((IC / total) * 100).toFixed(2);
   }
+
+   calculateFrequencyDeviation(doc: any): number {
+    const ft = doc.Genset_Frequency_OP_calculated ?? 0; // current frequency
+    const fn = 50; // nominal frequency (Pakistan standard)
+
+    const deviation = ft - fn;
+
+    return +deviation.toFixed(2); // Hz
+  }
+
+
+  calculateFrequencyDeviationAbs(doc: any): number {
+  const ft = doc.Genset_Frequency_OP_calculated ?? 0;
+  const fn = 50;
+  return +Math.abs(ft - fn).toFixed(2);
+}
+
 }
