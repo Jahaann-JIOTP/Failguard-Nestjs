@@ -10,7 +10,7 @@ export class NavyDataService {
     this.navyCollection = this.db.collection('basic_ml_predicted_12s');
     this.navyCollection.createIndex({ timestamp: 1 });
 
-    this.tmuaibnCollection = this.db.collection('navy_12s');
+    this.tmuaibnCollection = this.db.collection('navy');
     this.tmuaibnCollection.createIndex({ timestamp: 1 });
   }
 
@@ -56,7 +56,7 @@ export class NavyDataService {
       /** Merge 12S_predicted + navy_12s by timestamp */
       {
         $lookup: {
-          from: 'navy_12s',
+          from: 'navy',
           localField: 'timestamp',
           foreignField: 'timestamp',
           as: 'tmuaibn',
