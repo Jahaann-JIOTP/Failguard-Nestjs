@@ -53,10 +53,10 @@ export class NavyDataService {
         },
       },
 
-      /** Merge navy_30_S_predicted + navy_30_S by timestamp */
+      /** Merge 12S_predicted + navy_12s by timestamp */
       {
         $lookup: {
-          from: 'navy_30_S',
+          from: 'navy_12s',
           localField: 'timestamp',
           foreignField: 'timestamp',
           as: 'tmuaibn',
