@@ -79,6 +79,8 @@ export class DashboardService {
         'Genset_Total_KVA',
         'Genset_Total_Power_Factor_calculated',
         'Genset_Frequency_OP_calculated',
+        'Averagr_Engine_Speed',
+        'Percent_Engine_Torque_or_Duty_Cycle',
         'Genset_Application_kVA_Rating_PC2X',
         'I2Rated',
         ...this.getDashboard1Fields(),
@@ -119,6 +121,8 @@ export class DashboardService {
         'Genset_Total_kW',
         'Genset_Total_kVA',
         'Genset_Application_kVA_Rating_PC2X',
+        'Percent_Engine_Torque_or_Duty_Cycle',
+        'Averagr_Engine_Speed',
       ]),
       metricsMapper: (doc: any, data?: any[], mode?: string) =>
         this.mapMetricsDashboard4WithMode(doc, data || [], mode || 'live'),
@@ -137,6 +141,8 @@ export class DashboardService {
         'Genset_Total_Power_Factor_calculated',
         'Genset_Total_kVA',
         'Genset_Application_kVA_Rating_PC2X',
+        'Percent_Engine_Torque_or_Duty_Cycle',
+        'Averagr_Engine_Speed',
       ]),
       metricsMapper: (doc: any, data?: any[], mode?: string) =>
         this.mapMetricsDashboard5WithMode(doc, data || [], mode || 'live'),
@@ -172,7 +178,8 @@ export class DashboardService {
         'Genset_L2_Current',
         'Genset_L3_Current',
         'Genset_Rated_KW',
-        'Percent_Engine_Torque ',
+        'Percent_Engine_Torque_calculated',
+        'Averagr_Engine_Speed',
       ]),
       metricsMapper: (doc: any, data?: any[], mode?: string) =>
         this.mapMetricsDashboard6WithMode(doc, data || [], mode || 'live'),
@@ -239,8 +246,6 @@ export class DashboardService {
 
     return results;
   }
-
- 
 
   private async fetchDashboardData(
     mode: 'live' | 'historic' | 'range',
@@ -403,7 +408,6 @@ export class DashboardService {
     };
   }
 
- 
   /** -------------------
    * UPDATED: Fuel Consumed Current Run calculation - ONLY END DATE
    * ------------------- */
@@ -843,52 +847,52 @@ export class DashboardService {
   // }
 
   private calculateAverageMetrics(
-  data: any[],
-  metricsConfig: any,
-): Record<string, number> {
-  const averages: Record<string, number> = {};
+    data: any[],
+    metricsConfig: any,
+  ): Record<string, number> {
+    const averages: Record<string, number> = {};
 
-  console.log(`📊 Calculating averages from ${data.length} records`);
+    console.log(`📊 Calculating averages from ${data.length} records`);
 
-  for (const [key, calculator] of Object.entries(metricsConfig)) {
-    const calcFunc = calculator as (doc: any) => number;
-    
-    // ✅ Collect ONLY valid numbers from ON records
-    const validValues: number[] = [];
-    
-    data.forEach((doc, index) => {
-      try {
-        // ✅ Check if genset is ON for meaningful calculations
-        const isGensetOn = doc.Genset_Run_SS >= 1;
-        
-        if (isGensetOn) {
-          const value = calcFunc(doc);
-          
-          // ✅ STRICT validation: must be finite number
-          if (typeof value === 'number' && 
-              !isNaN(value) && 
-              isFinite(value)) {
-            validValues.push(value);
+    for (const [key, calculator] of Object.entries(metricsConfig)) {
+      const calcFunc = calculator as (doc: any) => number;
+
+      // ✅ Collect ONLY valid numbers from ON records
+      const validValues: number[] = [];
+
+      data.forEach((doc, index) => {
+        try {
+          // ✅ Check if genset is ON for meaningful calculations
+          const isGensetOn = doc.Genset_Run_SS >= 1;
+
+          if (isGensetOn) {
+            const value = calcFunc(doc);
+
+            // ✅ STRICT validation: must be finite number
+            if (typeof value === 'number' && !isNaN(value) && isFinite(value)) {
+              validValues.push(value);
+            }
           }
+        } catch (error) {
+          // Skip failed calculations
         }
-      } catch (error) {
-        // Skip failed calculations
-      }
-    });
-    
-    // ✅ Calculate average ONLY with valid values
-    if (validValues.length > 0) {
-      const sum = validValues.reduce((a, b) => a + b, 0);
-      averages[key] = +(sum / validValues.length).toFixed(2);
-      console.log(`   ${key}: ${averages[key]} (from ${validValues.length} ON records)`);
-    } else {
-      averages[key] = 0;
-      console.log(`   ${key}: 0 (no valid ON records)`);
-    }
-  }
+      });
 
-  return averages;
-}
+      // ✅ Calculate average ONLY with valid values
+      if (validValues.length > 0) {
+        const sum = validValues.reduce((a, b) => a + b, 0);
+        averages[key] = +(sum / validValues.length).toFixed(2);
+        console.log(
+          `   ${key}: ${averages[key]} (from ${validValues.length} ON records)`,
+        );
+      } else {
+        averages[key] = 0;
+        console.log(`   ${key}: 0 (no valid ON records)`);
+      }
+    }
+
+    return averages;
+  }
 
   /** -------------------
    * UPDATED: Metrics Mapping with Mode Support
@@ -1438,6 +1442,8 @@ export class DashboardService {
       'Battery_Voltage_calculated',
       'Genset_Total_Power_Factor_calculated',
       'Genset_Run_SS',
+      'Percent_Engine_Torque_calculated',
+      'Averagr_Engine_Speed',
 
       // ADD THESE for Dashboard2 charts compatibility
       'Genset_Total_KVA',
@@ -1564,7 +1570,8 @@ export class DashboardService {
       'Genset_L2_Current',
       'Genset_L3_Current',
       'Genset_Rated_KW',
-      'Percent_Engine_Torque ',
+      'Percent_Engine_Torque_or_Duty_Cycle',
+      'Averagr_Engine_Speed',
     ],
     lossesThermalStress: ['PowerLossFactor', 'I2'],
     frequencyRegulationEffectiveness: [
@@ -1663,7 +1670,7 @@ export class DashboardService {
 
     charts.electroMechanicalStress = data.map((d) => {
       // 🔥 NEW: Debug each document
-      const loadStress = this.formulas.calculateLoadStress(d);
+      // const loadStress = this.formulas.calculateLoadStress(d);
       // console.log('Load Stress Calculation:', {
       //   hasKVA: !!(d.Genset_Total_KVA || d.Genset_Total_kVA),
       //   hasRating: !!d.Genset_Application_kVA_Rating_PC2X,
@@ -1673,7 +1680,7 @@ export class DashboardService {
 
       return {
         time: d.timestamp,
-        LoadStress: loadStress || 0,
+        LoadStress: this.formulas.calculateMechanicalStress(d) || 0,
         electricStress: this.formulas.calculateElectricalStress(d) || 0,
       };
     });
@@ -1688,7 +1695,7 @@ export class DashboardService {
       time: d.timestamp,
       Genset_Frequency_OP_calculated: d.Genset_Frequency_OP_calculated ?? null,
       // Frequency_Deviation_Rad: d.Averagr_Engine_Speed ?? null,
-      Frequency_Deviation_Rad:  this.formulas.calculateFrequencyDeviationAbs(d),
+      Frequency_Deviation_Rad: this.formulas.calculateFrequencyDeviationAbs(d),
     }));
 
     return charts;
@@ -1864,7 +1871,8 @@ export class DashboardService {
     charts.gensetPowerFactor = data.map((d) => ({
       time: d.timestamp,
       Genset_Total_kW: d.Genset_Total_kW ?? null,
-      Fuel_Efficiency_Index: this.formulas.calculateFuelEfficiencyIndex(d) || 0,
+      Fuel_Efficiency_Index:
+        this.formulas.calculateSpecificFuelConsumption(d) || 0,
     }));
 
     // Use FormulasService for complex calculations

@@ -520,8 +520,8 @@ export class FormulasService {
   private lastTorque: number | null = null;
 
   calculateMechanicalStress(doc: any): number {
-    const engineSpeed = doc.Average_Engine_Speed ?? 1500;
-    const torque = doc.Percent_Engine_Torque_or_Duty_Cycle ?? 0;
+    const engineSpeed = doc.Averagr_Engine_Speed;
+    const torque = doc.Percent_Engine_Torque_or_Duty_Cycle;
 
     // ---------- C1 ----------
     const C1 = Math.abs(engineSpeed - 1500) / 1500;
@@ -712,7 +712,7 @@ export class FormulasService {
     return +((IC / total) * 100).toFixed(2);
   }
 
-   calculateFrequencyDeviation(doc: any): number {
+  calculateFrequencyDeviation(doc: any): number {
     const ft = doc.Genset_Frequency_OP_calculated ?? 0; // current frequency
     const fn = 50; // nominal frequency (Pakistan standard)
 
@@ -721,11 +721,9 @@ export class FormulasService {
     return +deviation.toFixed(2); // Hz
   }
 
-
   calculateFrequencyDeviationAbs(doc: any): number {
-  const ft = doc.Genset_Frequency_OP_calculated ?? 0;
-  const fn = 50;
-  return +Math.abs(ft - fn).toFixed(2);
-}
-
+    const ft = doc.Genset_Frequency_OP_calculated ?? 0;
+    const fn = 50;
+    return +Math.abs(ft - fn).toFixed(2);
+  }
 }
