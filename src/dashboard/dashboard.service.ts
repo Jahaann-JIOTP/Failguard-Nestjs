@@ -1086,7 +1086,7 @@ export class DashboardService {
       // 1. TOTAL PRODUCTION: Genset_Total_kW × 0.000833 × (sabhi data points)
       totalProductionKWh = data.reduce((sum, record) => {
         const kW = record.Genset_Total_kW || 0;
-        const productionPerRecord = kW * 0.000833;
+        const productionPerRecord = kW * 0.000833 * 4;
         return sum + productionPerRecord;
       }, 0);
 
