@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { Injectable, Inject } from '@nestjs/common';
 import { Db } from 'mongodb';
 
@@ -7,7 +9,7 @@ export class NavyDataService {
   private tmuaibnCollection;
 
   constructor(@Inject('MONGO_CLIENT') private readonly db: Db) {
-    this.navyCollection = this.db.collection('basic_ml_predicted_12s');
+    this.navyCollection = this.db.collection('rf_eng_prediction_12s');
     this.navyCollection.createIndex({ timestamp: 1 });
 
     this.tmuaibnCollection = this.db.collection('navy');
