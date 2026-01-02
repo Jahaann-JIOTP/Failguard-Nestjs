@@ -11,7 +11,11 @@ import { FormulasService } from 'src/trends/formulas.service';
 export class AianomlyService {
   private electrical;
   private eng;
+  private liveElc;
+  private liveEng;
   private navy;
+
+  private liveClients: Record<string, string | undefined> = {}; // clientId -> ISO timestamp
 
   constructor(
     @Inject('MONGO_CLIENT') private readonly db: Db,
@@ -20,6 +24,8 @@ export class AianomlyService {
     this.electrical = this.db.collection('ae_elc_prediction_12s');
     this.eng = this.db.collection('ae_eng_prediction_12s');
     this.navy = this.db.collection('navy_12s');
+    this.liveElc = this.db.collection('ae_elc_prediction_temp_12s');
+    this.liveEng = this.db.collection('ae_eng_prediction_temp_12s');
   }
 
   private toISOStringSafe(value?: string | Date) {
@@ -68,49 +74,166 @@ export class AianomlyService {
     };
   }
 
-  async getChartOnly(payload: { mode: string; start?: string; end?: string }) {
-    const { mode, start, end } = payload;
-    let query: any = {};
-    let sortOrder = 1;
-    let limit: number | undefined;
+  private generateClientId() {
+    return new ObjectId().toString();
+  }
 
-    if (mode === 'historic' && start && end) {
-      query.timestamp = {
-        $gte: this.toISOStringSafe(start),
-        $lte: this.toISOStringSafe(end),
+  // async getChartOnly(payload: { mode: string; start?: string; end?: string }) {
+  //   const { mode, start, end } = payload;
+  //   let query: any = {};
+  //   let sortOrder = 1;
+  //   let limit: number | undefined;
+
+  //   if (mode === 'historic' && start && end) {
+  //     query.timestamp = {
+  //       $gte: this.toISOStringSafe(start),
+  //       $lte: this.toISOStringSafe(end),
+  //     };
+  //   } else if (mode === 'live') {
+  //     sortOrder = -1;
+  //     limit = 50;
+  //   }
+
+  //   const projection = {
+  //     timestamp: 1,
+  //     Fused_Fisher_Score: 1,
+  //     quantile_95: 1,
+  //     quantile_99: 1,
+  //     s_threshold_EVT: 1,
+  //   };
+
+  //   const [genRaw, engRaw] = await Promise.all([
+  //     this.electrical
+  //       .find(query)
+  //       .project(projection)
+  //       .sort({ timestamp: sortOrder })
+  //       .limit(limit ?? 0)
+  //       .toArray(),
+  //     this.eng
+  //       .find(query)
+  //       .project(projection)
+  //       .sort({ timestamp: sortOrder })
+  //       .limit(limit ?? 0)
+  //       .toArray(),
+  //   ]);
+
+  //   return {
+  //     gen: genRaw.reverse().map((r) => this.makeStatus(r)),
+  //     eng: engRaw.reverse().map((r) => this.makeStatus(r)),
+  //   };
+  // }
+
+  async getChartOnly(payload: {
+    mode: string;
+    clientId?: string;
+    start?: string;
+    end?: string;
+  }) {
+    const { mode, clientId, start, end } = payload;
+
+    // -------------------------------
+    // Historic mode → original logic
+    // -------------------------------
+    if (mode === 'historic') {
+      let query: any = {};
+      let sortOrder = 1;
+      let limit: number | undefined;
+
+      if (start && end) {
+        query.timestamp = {
+          $gte: this.toISOStringSafe(start),
+          $lte: this.toISOStringSafe(end),
+        };
+      }
+
+      const projection = {
+        timestamp: 1,
+        Fused_Fisher_Score: 1,
+        quantile_95: 1,
+        quantile_99: 1,
+        s_threshold_EVT: 1,
       };
-    } else if (mode === 'live') {
-      sortOrder = -1;
-      limit = 50;
+
+      const [genRaw, engRaw] = await Promise.all([
+        this.electrical
+          .find(query)
+          .project(projection)
+          .sort({ timestamp: sortOrder })
+          .limit(limit ?? 0)
+          .toArray(),
+        this.eng
+          .find(query)
+          .project(projection)
+          .sort({ timestamp: sortOrder })
+          .limit(limit ?? 0)
+          .toArray(),
+      ]);
+
+      return {
+        gen: genRaw.reverse().map((r) => this.makeStatus(r)),
+        eng: engRaw.reverse().map((r) => this.makeStatus(r)),
+      };
     }
 
-    const projection = {
-      timestamp: 1,
-      Fused_Fisher_Score: 1,
-      quantile_95: 1,
-      quantile_99: 1,
-      s_threshold_EVT: 1,
-    };
+    // -------------------------------
+    // Live mode → new logic
+    // -------------------------------
+    if (mode === 'live') {
+      let currentClientId = clientId;
 
-    const [genRaw, engRaw] = await Promise.all([
-      this.electrical
-        .find(query)
-        .project(projection)
-        .sort({ timestamp: sortOrder })
-        .limit(limit ?? 0)
-        .toArray(),
-      this.eng
-        .find(query)
-        .project(projection)
-        .sort({ timestamp: sortOrder })
-        .limit(limit ?? 0)
-        .toArray(),
-    ]);
+      // First time live request → backend khud clientId generate kare
+      if (!currentClientId) {
+        currentClientId = this.generateClientId();
+        this.liveClients[currentClientId] = undefined;
+      }
 
-    return {
-      gen: genRaw.reverse().map((r) => this.makeStatus(r)),
-      eng: engRaw.reverse().map((r) => this.makeStatus(r)),
-    };
+      const lastTs = this.liveClients[currentClientId];
+
+      const queryElc: any = lastTs
+        ? { timestamp: { $gt: new Date(lastTs) } }
+        : {};
+      const queryEng: any = lastTs
+        ? { timestamp: { $gt: new Date(lastTs) } }
+        : {};
+
+      const projection = {
+        timestamp: 1,
+        Fused_Fisher_Score: 1,
+        quantile_95: 1,
+        quantile_99: 1,
+        s_threshold_EVT: 1,
+      };
+
+      const [elcDocs, engDocs] = await Promise.all([
+        this.liveElc
+          .find(queryElc)
+          .project(projection)
+          .sort({ timestamp: 1 })
+          .toArray(),
+        this.liveEng
+          .find(queryEng)
+          .project(projection)
+          .sort({ timestamp: 1 })
+          .toArray(),
+      ]);
+
+      const allDocs = [...elcDocs, ...engDocs];
+      if (allDocs.length) {
+        const newest = allDocs.reduce(
+          (max, d) => (d.timestamp > max ? d.timestamp : max),
+          allDocs[0].timestamp,
+        );
+        this.liveClients[currentClientId] = new Date(newest).toISOString();
+      }
+
+      return {
+        clientId: currentClientId, // 👈 frontend ko yahan se mile ga
+        elc: elcDocs.map((r) => this.makeStatus(r)),
+        eng: engDocs.map((r) => this.makeStatus(r)),
+      };
+    }
+
+    throw new Error('Invalid mode');
   }
 
   async getAnomalyDetails(params: {
