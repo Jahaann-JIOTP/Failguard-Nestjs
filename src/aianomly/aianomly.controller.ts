@@ -16,27 +16,6 @@ export class AianomlyController {
   // -------------------------------------------------------
   // API 2 → Anomaly details by ID
   // -------------------------------------------------------
-  // @Get('details/:id')
-  // async getDetails(@Param('id') id: string) {
-  //   return this.aianomlyService.getAnomalyDetails(id);
-  // }
-
-  // GET /anomly/details/:id?mode=historic&start=...&end=...
-  // @Get('details/:id')
-  // async getDetails(
-  //   @Param('id') id: string,
-  //   @Query('mode') mode?: string,
-  //   @Query('start') start?: string,
-  //   @Query('end') end?: string,
-  // ) {
-  //   return this.aianomlyService.getAnomalyDetails({
-  //     id,
-  //     mode: mode || 'live',
-  //     start,
-  //     end,
-  //   });
-  // }
-
   @Get('details/:id')
   async getDetails(
     @Param('id') id: string,
@@ -44,9 +23,8 @@ export class AianomlyController {
     @Query('start') start?: string,
     @Query('end') end?: string,
   ) {
-    // mode ko 'live' ya 'historic' mai convert karo
-    const modeTyped: 'live' | 'historic' =
-      mode === 'historic' ? 'historic' : 'live';
+    // Default mode = historic for last 100 prev/next
+    const modeTyped: 'live' | 'historic' = 'historic'; // always historic
 
     return this.aianomlyService.getAnomalyDetails({
       id,
