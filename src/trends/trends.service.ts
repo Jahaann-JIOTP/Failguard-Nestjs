@@ -118,6 +118,16 @@ export class TrendsService {
         'Genset_Application_kVA_Rating_PC2X',
         'Genset_Total_Power_Factor_calculated',
       ],
+      Fuel_Efficiency_Index: [
+        'Genset_Total_kW',
+        'Fuel_Rate',
+        'Genset_Application_kW_Rating_PC2X',
+      ],
+      Neutral_Current: [
+        'Genset_L1_Current',
+        'Genset_L2_Current',
+        'Genset_L3_Current',
+      ],
       Electrical_Stress_Index: [
         'Genset_L1_kW',
         'Genset_L2_kW',
@@ -204,6 +214,9 @@ export class TrendsService {
           case 'Load_Percent':
             value = this.formulasService.calculateLoadPercent(doc);
             break;
+          case 'Fuel_Efficiency_Index':
+            value = this.formulasService.calculateFuelEfficiencyIndex(doc);
+            break;
           case 'Current_Imbalance':
             value = this.formulasService.calculateCurrentImbalance(doc);
             break;
@@ -244,8 +257,19 @@ export class TrendsService {
           case 'Specific_Fuel_Consumption':
             value = this.formulasService.calculateSpecificFuelConsumption(doc);
             break;
+          case 'Fuel_Consumption':
+            const fuelData = this.formulasService.calculateFuelConsumption([
+              doc,
+            ]); // wrap in array
+            // Ab sirf Fuel_Used lena hai
+            value = fuelData?.[0]?.Fuel_Used ?? null;
+            break;
+
           case 'Heat_Rate':
             value = this.formulasService.calculateHeatRate(doc);
+            break;
+          case 'Neutral_Current':
+            value = this.formulasService.calculateNeutralCurrent(doc);
             break;
           case 'Coolant_TemperatureC':
             value = this.formulasService.convertCoolantToCelsius(doc);

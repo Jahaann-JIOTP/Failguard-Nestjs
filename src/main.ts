@@ -17,6 +17,7 @@ async function bootstrap() {
       'http://localhost:3000',
       'https://pn.jahaann.com',
       'http://pn.jahaann.com',
+      'https://8z5xx3fp-3000.asse.devtunnels.ms',
     ],
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
     credentials: true,
