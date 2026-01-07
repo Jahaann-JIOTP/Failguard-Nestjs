@@ -444,25 +444,10 @@ export class ReportsService {
               )
             : 0;
 
-        const feiList = periodIndexes
-          .map((i) => {
-            const kW = day.Genset_Total_kW[i];
-            const fuelRate = day.Fuel_Rate[i];
-            // Skip zero or invalid fuel rates
-            if (!fuelRate || fuelRate <= 0) return null;
-            return kW / (fuelRate * 3.7854);
-          })
-          .filter((v) => v !== null); // remove invalid entries
-
         const producedPerLiter =
-          feiList.length > 0
-            ? +(feiList.reduce((a, b) => a + b, 0) / feiList.length).toFixed(2)
+          fuelConsumedLiters > 0
+            ? +(production / fuelConsumedLiters).toFixed(2)
             : 0;
-
-        // const producedPerLiter =
-        //   fuelConsumedLiters > 0
-        //     ? +(production / fuelConsumedLiters).toFixed(2)
-        //     : 0;
 
         // --- Cost ---
         const cost = +(fuelConsumedLiters * fuelCostPerLitre).toFixed(2);
