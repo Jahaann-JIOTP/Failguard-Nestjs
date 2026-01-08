@@ -1879,7 +1879,7 @@ export class DashboardService {
     charts.rpmStabilityIndex =
       this.formulas.calculateRPMStabilityWithLoad(data);
     charts.oscillationIndex = this.formulas.calculateOscillationIndex(data);
-    // charts.fuelConsumption = this.formulas.calculateFuelConsumption(data);
+    charts.fuelConsumption = this.formulas.calculateFuelConsumption(data);
     // charts.fuelConsumption = this.formulas.calculateFuelConsumption(data);
 
     charts.fuelConsumption = data.map((d) => ({

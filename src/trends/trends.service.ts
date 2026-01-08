@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unsafe-return */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { Injectable, Inject } from '@nestjs/common';
 import { Db } from 'mongodb';
@@ -118,15 +120,14 @@ export class TrendsService {
         'Genset_Application_kVA_Rating_PC2X',
         'Genset_Total_Power_Factor_calculated',
       ],
-      Fuel_Efficiency_Index: [
-        'Genset_Total_kW',
-        'Fuel_Rate',
-        'Genset_Application_kW_Rating_PC2X',
-      ],
+      Fuel_Efficiency_Index: ['Genset_Total_kW', 'Fuel_Rate'],
       Neutral_Current: [
         'Genset_L1_Current',
         'Genset_L2_Current',
         'Genset_L3_Current',
+      ],
+      Intake_Manifold_Temperature_calculated: [
+        'Intake_Manifold_Temperature_calculated',
       ],
       Electrical_Stress_Index: [
         'Genset_L1_kW',
@@ -171,6 +172,8 @@ export class TrendsService {
     });
     const results: any[] = [];
     const rawDocs: any[] = [];
+    // eslint-disable-next-line prefer-const
+    let previousRawDoc: any = null;
 
     for await (const doc of aggCursor) {
       rawDocs.push(doc);
@@ -215,7 +218,7 @@ export class TrendsService {
             value = this.formulasService.calculateLoadPercent(doc);
             break;
           case 'Fuel_Efficiency_Index':
-            value = this.formulasService.calculateFuelEfficiencyIndex(doc);
+            value = this.formulasService.calculateSpecificFuelConsumption(doc);
             break;
           case 'Current_Imbalance':
             value = this.formulasService.calculateCurrentImbalance(doc);
@@ -247,6 +250,9 @@ export class TrendsService {
 
           case 'Load_Stress_Index':
             value = this.formulasService.calculateLoadStress(doc);
+            break;
+          case 'Intake_Manifold_Temperature_calculated':
+            value = this.formulasService.convertIntakeToCelsius(doc);
             break;
           case 'Lubrication_Risk_Index':
             value = this.formulasService.calculateLubricationRiskIndex(doc);
@@ -292,9 +298,10 @@ export class TrendsService {
           case 'Fuel_Flow_Change':
             value = this.formulasService.calculateFuelFlowRateChange(
               doc,
-              results[results.length - 1],
+              previousRawDoc,
             );
             break;
+
           default:
             value = doc[param] ?? null;
         }
@@ -305,6 +312,7 @@ export class TrendsService {
 
       record.Genset_Run_SS = doc.Genset_Run_SS ?? null;
       results.push(record);
+      previousRawDoc = doc;
     }
 
     this.cache[key] = results;

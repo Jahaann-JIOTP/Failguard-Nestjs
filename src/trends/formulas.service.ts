@@ -406,10 +406,18 @@ export class FormulasService {
       : 0;
   }
 
+  // calculateFuelFlowRateChange(current: any, previous: any): number {
+  //   const currentRate = current.Fuel_Rate ?? 0;
+  //   const previousRate = previous?.Fuel_Rate ?? currentRate;
+  //   return +(currentRate - previousRate).toFixed(3);
+  // }
+
   calculateFuelFlowRateChange(current: any, previous: any): number {
-    const currentRate = current.Fuel_Rate ?? 0;
-    const previousRate = previous?.Fuel_Rate ?? currentRate;
-    return +(currentRate - previousRate).toFixed(3);
+    if (!previous || previous.Fuel_Rate == null || current.Fuel_Rate == null)
+      return 0;
+
+    const diff = current.Fuel_Rate - previous.Fuel_Rate;
+    return +diff.toFixed(3);
   }
 
   /** -------------------
