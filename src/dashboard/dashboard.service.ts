@@ -1229,64 +1229,6 @@ export class DashboardService {
     return localDate;
   }
 
-  // private buildAggregationPipeline(
-  //   mode: string,
-  //   projection: Record<string, number>,
-  //   start?: string,
-  //   end?: string,
-  // ): any[] {
-  //   const pipeline: any[] = [];
-  //   const matchStage: any = {};
-
-  //   console.log('=== BUILDING PIPELINE ===');
-  //   console.log('Mode:', mode);
-  //   console.log('Received dates:', { start, end });
-
-  //   if ((mode === 'historic' || mode === 'range') && start && end) {
-  //     let startISO = start;
-  //     let endISO = end;
-
-  //     // Agar sirf date hai (2025-11-18) to +05:00 add kar do
-  //     if (!start.includes('T')) {
-  //       startISO = `${start}T00:00:00+05:00`;
-  //       endISO = `${end}T23:59:59.999+05:00`;
-  //     }
-
-  //     // Agar end time 00:00:00 hai to 23:59:59 bana do
-  //     if (endISO.includes('T00:00:00') && !endISO.includes('23:59')) {
-  //       const datePart = endISO.split('T')[0];
-  //       endISO = `${datePart}T23:59:59.999+05:00`;
-  //     }
-
-  //     matchStage.timestamp = {
-  //       $gte: startISO,
-  //       $lte: endISO,
-  //     };
-
-  //     if (mode === 'range') {
-  //       matchStage.Genset_Run_SS = { $gte: 1 };
-  //     }
-
-  //     console.log('Final +05:00 Range (Direct String Compare):');
-  //     console.log('  $gte →', startISO);
-  //     console.log('  $lte →', endISO);
-  //   } else if (mode === 'live') {
-  //     const ninetyMinutesAgo = new Date(Date.now() - 90 * 60 * 1000);
-  //     matchStage.timestamp = { $gte: ninetyMinutesAgo.toISOString() };
-  //     console.log('Live mode → Last 90 minutes (UTC OK)');
-  //   }
-
-  //   if (Object.keys(matchStage).length > 0) {
-  //     pipeline.push({ $match: matchStage });
-  //   }
-
-  //   pipeline.push({ $project: projection });
-  //   pipeline.push({ $sort: { timestamp: 1 } });
-
-  //   console.log('Pipeline built successfully with +05:00 direct comparison');
-  //   return pipeline;
-  // }
-
   private buildAggregationPipeline(
     mode: string,
     projection: Record<string, number>,
@@ -1329,13 +1271,10 @@ export class DashboardService {
       console.log('  $gte →', startISO);
       console.log('  $lte →', endISO);
     } else if (mode === 'live') {
-      const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000);
-      matchStage.timestamp = { $gte: sixHoursAgo.toISOString() };
-
-      // ✅ YEH LINE ADD KARAIN - Live mode ke liye Genset_Run_SS condition
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000); // 1 hour
+      matchStage.timestamp = { $gte: oneHourAgo.toISOString() };
       matchStage.Genset_Run_SS = { $gte: 1 };
-
-      console.log('Live mode → Last 6 hours with Genset_Run_SS >= 1');
+      console.log('Live mode → Last 1 hour with Genset_Run_SS >= 1');
     }
 
     if (Object.keys(matchStage).length > 0) {
@@ -1348,6 +1287,74 @@ export class DashboardService {
     console.log('Pipeline built successfully with +05:00 direct comparison');
     return pipeline;
   }
+
+  // private buildAggregationPipeline(
+  //   mode: string,
+  //   projection: Record<string, number>,
+  //   start?: string,
+  //   end?: string,
+  // ): any[] {
+  //   const pipeline: any[] = [];
+  //   const matchStage: any = {};
+
+  //   console.log('=== BUILDING PIPELINE ===');
+  //   console.log('Mode:', mode);
+  //   console.log('Received dates:', { start, end });
+
+  //   if ((mode === 'historic' || mode === 'range') && start && end) {
+  //     let startISO = start;
+  //     let endISO = end;
+
+  //     // Agar sirf date hai (2025-11-18) to +05:00 add kar do
+  //     if (!start.includes('T')) {
+  //       startISO = `${start}T00:00:00+05:00`;
+  //       endISO = `${end}T23:59:59.999+05:00`;
+  //     }
+
+  //     // Agar end time 00:00:00 hai to 23:59:59 bana do
+  //     if (endISO.includes('T00:00:00') && !endISO.includes('23:59')) {
+  //       const datePart = endISO.split('T')[0];
+  //       endISO = `${datePart}T23:59:59.999+05:00`;
+  //     }
+
+  //     matchStage.timestamp = {
+  //       $gte: startISO,
+  //       $lte: endISO,
+  //     };
+
+  //     if (mode === 'range') {
+  //       matchStage.Genset_Run_SS = { $gte: 1 };
+  //     }
+
+  //     console.log('Final +05:00 Range (Direct String Compare):');
+  //     console.log('  $gte →', startISO);
+  //     console.log('  $lte →', endISO);
+  //     // } else if (mode === 'live') {
+  //     //   const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000);
+  //     //   matchStage.timestamp = { $gte: sixHoursAgo.toISOString() };
+
+  //     //   // ✅ YEH LINE ADD KARAIN - Live mode ke liye Genset_Run_SS condition
+  //     //   matchStage.Genset_Run_SS = { $gte: 1 };
+
+  //     //   console.log('Live mode → Last 6 hours with Genset_Run_SS >= 1');
+  //     // }
+  //   } else if (mode === 'live') {
+  //     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000); // 1 hour
+  //     matchStage.timestamp = { $gte: oneHourAgo.toISOString() };
+  //     matchStage.Genset_Run_SS = { $gte: 1 };
+  //     console.log('Live mode → Last 1 hour with Genset_Run_SS >= 1');
+  //   }
+
+  //   if (Object.keys(matchStage).length > 0) {
+  //     pipeline.push({ $match: matchStage });
+  //   }
+
+  //   pipeline.push({ $project: projection });
+  //   pipeline.push({ $sort: { timestamp: 1 } });
+
+  //   console.log('Pipeline built successfully with +05:00 direct comparison');
+  //   return pipeline;
+  // }
 
   /** -------------------
    * Date Timestamp Formatter
