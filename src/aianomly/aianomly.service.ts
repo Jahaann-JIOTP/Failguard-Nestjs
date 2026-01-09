@@ -21,11 +21,11 @@ export class AianomlyService {
     @Inject('MONGO_CLIENT') private readonly db: Db,
     private readonly formulas: FormulasService,
   ) {
-    this.electrical = this.db.collection('ae_elc_prediction_12s');
-    this.eng = this.db.collection('ae_eng_prediction_12s');
+    this.electrical = this.db.collection('ae_elc_prediction_12s_2');
+    this.eng = this.db.collection('ae_eng_prediction_12s_2');
     this.navy = this.db.collection('navy_12s');
-    this.liveElc = this.db.collection('ae_elc_prediction_temp_12s');
-    this.liveEng = this.db.collection('ae_eng_prediction_temp_12s');
+    this.liveElc = this.db.collection('ae_elc_prediction_temp_12s_2');
+    this.liveEng = this.db.collection('ae_eng_prediction_temp_12s_2');
   }
 
   private toISOStringSafe(value?: string | Date) {
@@ -276,10 +276,12 @@ export class AianomlyService {
 
     featureString?.split(',').forEach((f) => {
       const trimmed = f.trim();
-      const match = trimmed.match(/(.+)_Q_(\d+(\.\d+)?)/);
+      // const match = trimmed.match(/(.+)_T_(\d+(\.\d+)?)/);
+      // Match both _Q_ and _T2_
+      const match = trimmed.match(/(.+?)_(Q|T2)_([-]?\d+(\.\d+)?)/);
       if (match) {
         const cleanKey = match[1];
-        const value = parseFloat(match[2]);
+        const value = parseFloat(match[3]);
         features.push(cleanKey);
         contribution[cleanKey] = value;
       } else {
@@ -330,6 +332,10 @@ export class AianomlyService {
       { value: number | null; timestamp: string }[]
     > = {};
     if (!features.length) return result;
+
+    // const fields = features.map((f) =>
+    //   f.replace(/_(Q|T2)_[-]?\d+(\.\d+)?$/, ''),
+    // );
 
     const fields = features.map((f) =>
       f.replace(/_(Q|T2)_[-]?\d+(\.\d+)?$/, ''),
