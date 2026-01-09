@@ -28,7 +28,7 @@ export class DashboardService {
     private readonly formulas: FormulasService,
   ) {
     this.collection = this.db.collection('navy_12s');
-    this.liveCollection = this.db.collection('raw_on_12s'); // ✅ ADD THIS LINE
+    this.liveCollection = this.db.collection('navy_12s'); // ✅ ADD THIS LINE
   }
 
   /** -------------------
