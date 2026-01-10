@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { Controller, Post, Get, Body } from '@nestjs/common';
 import { GeneratorService } from './generator.service';

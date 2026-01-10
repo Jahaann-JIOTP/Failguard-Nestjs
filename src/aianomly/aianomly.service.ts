@@ -24,7 +24,7 @@ export class AianomlyService {
     this.electrical = this.db.collection('ae_elc_prediction_12s_2');
     this.eng = this.db.collection('ae_eng_prediction_12s_2');
     this.navy = this.db.collection('navy_12s');
-    this.liveElc = this.db.collection('ae_elc_prediction_temp_12s_2');
+    this.liveElc = this.db.collection('ae_elc_prediction_12s_2');
     this.liveEng = this.db.collection('ae_eng_prediction_temp_12s_2');
   }
 
@@ -227,7 +227,7 @@ export class AianomlyService {
       }
 
       return {
-        clientId: currentClientId, // 👈 frontend ko yahan se mile ga
+        clientId: currentClientId, // frontend ko yahan se mile ga
         elc: elcDocs.map((r) => this.makeStatus(r)),
         eng: engDocs.map((r) => this.makeStatus(r)),
       };

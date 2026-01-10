@@ -4,7 +4,6 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { Injectable, Inject } from '@nestjs/common';
 import { Db } from 'mongodb';
-import * as moment from 'moment-timezone';
 
 @Injectable()
 export class GeneratorService {

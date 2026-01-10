@@ -3,7 +3,6 @@ import { ConfigModule } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-
 import { AuthModule } from './auth/auth.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { DatabaseModule } from './dashboard/database.module';
@@ -26,7 +25,14 @@ import { AianomlyModule } from './aianomly/aianomly.module';
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     ScheduleModule.forRoot(),
-    MongooseModule.forRoot(process.env.MONGODB_URI || ''), // Default connection, no connectionName
+    MongooseModule.forRoot(process.env.MONGODB_URI || '', {
+      maxPoolSize: 10,
+      minPoolSize: 5,
+      maxIdleTimeMS: 60000,
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
+      connectTimeoutMS: 10000,
+    }), // Default connection, no connectionName
     UsersModule,
     AuthModule,
     RolesModule,

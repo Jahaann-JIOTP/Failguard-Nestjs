@@ -1393,6 +1393,64 @@ export class DashboardService {
     }
   }
 
+  // private buildAggregationPipeline(
+  //   mode: string,
+  //   projection: Record<string, number>,
+  //   clientId?: string,
+  //   init?: boolean,
+  //   start?: string,
+  //   end?: string,
+  // ): any[] {
+  //   const pipeline: any[] = [];
+  //   const matchStage: any = {};
+
+  //   // ---------------- HISTORIC / RANGE ----------------
+  //   if ((mode === 'historic' || mode === 'range') && start && end) {
+  //     let startISO = start;
+  //     let endISO = end;
+
+  //     if (!start.includes('T')) {
+  //       startISO = `${start}T00:00:00+05:00`;
+  //       endISO = `${end}T23:59:59.999+05:00`;
+  //     }
+
+  //     matchStage.timestamp = { $gte: startISO, $lte: endISO };
+
+  //     if (mode === 'range') {
+  //       matchStage.Genset_Run_SS = { $gte: 1 };
+  //     }
+  //   }
+
+  //   // ---------------- LIVE MODE ----------------
+  //   if (mode === 'live') {
+  //     if (!clientId) throw new Error('clientId required in live mode');
+
+  //     // First call → last 1 hour history
+  //     if (init || !this.liveClients[clientId]) {
+  //       const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+  //       matchStage.timestamp = { $gte: oneHourAgo.toISOString() };
+  //       matchStage.Genset_Run_SS = { $gte: 1 };
+  //     }
+
+  //     // Subsequent calls → only new data
+  //     else {
+  //       matchStage.timestamp = {
+  //         $gt: this.liveClients[clientId],
+  //       };
+  //       matchStage.Genset_Run_SS = { $gte: 1 };
+  //     }
+  //   }
+
+  //   if (Object.keys(matchStage).length) {
+  //     pipeline.push({ $match: matchStage });
+  //   }
+
+  //   pipeline.push({ $project: projection });
+  //   pipeline.push({ $sort: { timestamp: 1 } });
+
+  //   return pipeline;
+  // }
+
   /** -------------------
    * On Duration Calculator for Date Timestamps
    * ------------------- */
