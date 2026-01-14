@@ -22,6 +22,6 @@ COPY --from=builder /app/package*.json ./
 RUN npm ci --omit=dev
 
 USER app
-EXPOSE 5003
+EXPOSE 5009
 
 CMD ["node", "dist/src/main.js"]
