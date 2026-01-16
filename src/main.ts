@@ -15,8 +15,8 @@ async function bootstrap() {
   app.enableCors({
     origin: [
       'http://localhost:3000',
-      'https://pn.jahaann.com',
-      'http://pn.jahaann.com',
+      'https://failguard.nexalyze.com',
+      'http://failguard.nexalyze.com',
       'https://8z5xx3fp-3000.asse.devtunnels.ms',
     ],
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
@@ -32,9 +32,9 @@ async function bootstrap() {
   );
   console.log('🕓 Current Time:', moment().format('YYYY-MM-DD HH:mm:ss Z'));
 
-  await app.listen(process.env.PORT ?? 5003);
-  Logger.log('🚀 Application running on http://localhost:5003');
-  Logger.log(`📡 WebSocket running on: ws://localhost:5003/live-dashboard`);
+  await app.listen(process.env.PORT ?? 5009);
+  Logger.log('🚀 Application running on http://localhost:5009');
+  Logger.log(`📡 WebSocket running on: ws://localhost:5009/live-dashboard`);
 }
 
 bootstrap();
