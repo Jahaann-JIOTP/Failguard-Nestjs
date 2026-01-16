@@ -78,51 +78,6 @@ export class AianomlyService {
     return new ObjectId().toString();
   }
 
-  // async getChartOnly(payload: { mode: string; start?: string; end?: string }) {
-  //   const { mode, start, end } = payload;
-  //   let query: any = {};
-  //   let sortOrder = 1;
-  //   let limit: number | undefined;
-
-  //   if (mode === 'historic' && start && end) {
-  //     query.timestamp = {
-  //       $gte: this.toISOStringSafe(start),
-  //       $lte: this.toISOStringSafe(end),
-  //     };
-  //   } else if (mode === 'live') {
-  //     sortOrder = -1;
-  //     limit = 50;
-  //   }
-
-  //   const projection = {
-  //     timestamp: 1,
-  //     Fused_Fisher_Score: 1,
-  //     quantile_95: 1,
-  //     quantile_99: 1,
-  //     s_threshold_EVT: 1,
-  //   };
-
-  //   const [genRaw, engRaw] = await Promise.all([
-  //     this.electrical
-  //       .find(query)
-  //       .project(projection)
-  //       .sort({ timestamp: sortOrder })
-  //       .limit(limit ?? 0)
-  //       .toArray(),
-  //     this.eng
-  //       .find(query)
-  //       .project(projection)
-  //       .sort({ timestamp: sortOrder })
-  //       .limit(limit ?? 0)
-  //       .toArray(),
-  //   ]);
-
-  //   return {
-  //     gen: genRaw.reverse().map((r) => this.makeStatus(r)),
-  //     eng: engRaw.reverse().map((r) => this.makeStatus(r)),
-  //   };
-  // }
-
   async getChartOnly(payload: {
     mode: string;
     clientId?: string;
@@ -259,15 +214,26 @@ export class AianomlyService {
     let status = 'Healthy';
     let featureString = '';
 
+    // if (score > record.s_threshold_EVT) {
+    //   status = 'Critical';
+    //   featureString = record.top_features_evt_metric;
+    // } else if (score > record.quantile_99) {
+    //   status = 'Threat';
+    //   featureString = record.top_features_99th_metric;
+    // } else if (score > record.quantile_95) {
+    //   status = 'Warning';
+    //   featureString = record.top_features_95th_metric;
+    // }
+
     if (score > record.s_threshold_EVT) {
       status = 'Critical';
-      featureString = record.top_features_evt_metric;
+      featureString = record.top_problematic_features_evt;
     } else if (score > record.quantile_99) {
       status = 'Threat';
-      featureString = record.top_features_99th_metric;
+      featureString = record.top_problematic_features_99th;
     } else if (score > record.quantile_95) {
       status = 'Warning';
-      featureString = record.top_features_95th_metric;
+      featureString = record.top_problematic_features_95th;
     }
 
     // Clean feature names and generate contribution
@@ -278,10 +244,11 @@ export class AianomlyService {
       const trimmed = f.trim();
       // const match = trimmed.match(/(.+)_T_(\d+(\.\d+)?)/);
       // Match both _Q_ and _T2_
-      const match = trimmed.match(/(.+?)_(Q|T2)_([-]?\d+(\.\d+)?)/);
+      // const match = trimmed.match(/(.+?)_(Q|T2)_([-]?\d+(\.\d+)?)/);
+      const match = trimmed.match(/(.+?)_Q\+T2_([-]?\d+(\.\d+)?)/);
       if (match) {
         const cleanKey = match[1];
-        const value = parseFloat(match[3]);
+        const value = parseFloat(match[2]);
         features.push(cleanKey);
         contribution[cleanKey] = value;
       } else {

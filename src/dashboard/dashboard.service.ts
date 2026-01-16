@@ -1273,7 +1273,8 @@ export class DashboardService {
     } else if (mode === 'live') {
       const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000); // 1 hour
       matchStage.timestamp = { $gte: oneHourAgo.toISOString() };
-      matchStage.Genset_Run_SS = { $gte: 1 };
+      // matchStage.Genset_Run_SS = { $gte: 1 };
+      matchStage.Genset_Run_SS = 0;
       console.log('Live mode → Last 1 hour with Genset_Run_SS >= 1');
     }
 
