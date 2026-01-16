@@ -225,6 +225,8 @@ export class AianomlyService {
     //   featureString = record.top_features_95th_metric;
     // }
 
+    // change fields
+
     if (score > record.s_threshold_EVT) {
       status = 'Critical';
       featureString = record.top_problematic_features_evt;
