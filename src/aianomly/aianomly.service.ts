@@ -21,8 +21,10 @@ export class AianomlyService {
     @Inject('MONGO_CLIENT') private readonly db: Db,
     private readonly formulas: FormulasService,
   ) {
-    this.electrical = this.db.collection('ae_elc_prediction_12s_2');
-    this.eng = this.db.collection('ae_eng_prediction_12s_2');
+    // this.electrical = this.db.collection('ae_elc_prediction_12s_2');
+    // this.eng = this.db.collection('ae_eng_prediction_12s_2');
+    this.electrical = this.db.collection('2');
+    this.eng = this.db.collection('1');
     this.navy = this.db.collection('navy_12s');
     this.liveElc = this.db.collection('ae_elc_prediction_12s_2');
     this.liveEng = this.db.collection('ae_eng_prediction_temp_12s_2');
@@ -244,15 +246,14 @@ export class AianomlyService {
 
     featureString?.split(',').forEach((f) => {
       const trimmed = f.trim();
-      // const match = trimmed.match(/(.+)_T_(\d+(\.\d+)?)/);
-      // Match both _Q_ and _T2_
-      // const match = trimmed.match(/(.+?)_(Q|T2)_([-]?\d+(\.\d+)?)/);
-      const match = trimmed.match(/(.+?)_Q\+T2_([-]?\d+(\.\d+)?)/);
+      const match = trimmed.match(
+        /(.+?)_(Q\+T2|Qf|T2f|Q|T2)_([-]?\d+(\.\d+)?)/,
+      );
       if (match) {
-        const cleanKey = match[1];
-        const value = parseFloat(match[2]);
-        features.push(cleanKey);
-        contribution[cleanKey] = value;
+        const featureName = match[1]; // the clean feature key without suffix
+        const value = parseFloat(match[3]); // numeric contribution
+        features.push(featureName);
+        contribution[featureName] = value;
       } else {
         features.push(trimmed.replace('_RE', ''));
       }

@@ -32,7 +32,7 @@ export class AdminGuard implements CanActivate {
     }
 
     // Check if it's Admin
-    if (role.name !== 'Administrator') {
+    if (role.name !== 'Administrator' && role.name !== 'admin') {
       throw new ForbiddenException('Access denied. Admins only.');
     }
 
