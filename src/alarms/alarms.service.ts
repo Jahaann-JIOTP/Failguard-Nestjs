@@ -59,54 +59,66 @@ export class AlarmsService {
 
   private meterSuffixMapping(): Record<string, string[]> {
     return {
+      // DIRECT_KPIs - Parameter names ONLY (without location)
       Direct_KPIs: [
-        'Genset_L1L2_Voltage',
-        'Genset_L2L3_Voltage',
-        'Genset_L3L1_Voltage',
-        'Genset_L1N_Voltage',
-        'Genset_L2N_Voltage',
-        'Genset_L3N_Voltage',
-        'Genset_LL_Avg_Voltage',
-        'Genset_LN_Avg_Voltage',
+        // Voltage Parameters
+        'L1L2_Voltage',
+        'L2L3_Voltage',
+        'L3L1_Voltage',
+        'LL_Avg_Voltage',
+        'L1N_Voltage',
+        'L2N_Voltage',
+        'L3N_Voltage',
+        'LN_Avg_Voltage',
 
-        'Genset_L1_Current',
-        'Genset_L2_Current',
-        'Genset_L3_Current',
-        'Genset_Avg_Current',
+        // Current Parameters
+        'L1_Current',
+        'L2_Current',
+        'L3_Current',
+        'Avg_Current',
 
-        'Genset_L1_kW',
-        'Genset_L2_kW',
-        'Genset_L3_kW',
-        'Genset_Total_kW',
-        'Genset_L1_kVA',
-        'Genset_L2_kVA',
-        'Genset_L3_kVA',
-        'Genset_Total_kVA',
+        // Power Parameters
+        'L1_kW',
+        'L2_kW',
+        'L3_kW',
+        'Total_kW',
+        'L1_kVA',
+        'L2_kVA',
+        'L3_kVA',
+        'Total_kVA',
+        'L1_kVAR',
+        'L2_kVAR',
+        'L3_kVAR',
+        'Total_kVAR',
 
-        'Genset_L1_Power_Factor_PC2X',
-        'Genset_L2_Power_Factor_PC2X',
-        'Genset_L3_Power_Factor_PC2X',
-        'Genset_Total_Power_Factor_calculated',
+        // Power Factor
+        'L1_Power_Factor_PC2X',
+        'L2_Power_Factor_PC2X',
+        'L3_Power_Factor_PC2X',
+        'Total_Power_Factor_calculated',
 
+        // Engine Parameters
         'Oil_Pressure',
         'Boost_Pressure',
         'Oil_Temperature',
         'Coolant_Temperature',
         'Intake_Manifold_Temperature_calculated',
 
+        // Battery & Electrical
         'Nominal_Battery_Voltage',
         'Battery_Voltage_calculated',
         'Base_Frequency_calculated',
-        'V_Hz_Rolloff_Slope',
-        'V_Hz_Knee_Frequency',
         'Genset_Frequency_OP_calculated',
-        'Genset_Application_Nominal_Current_PC2X',
-        'Genset_Standby_Nominal_Current_PC2X',
-        'Genset_Standby_kW_Rating_PC2X',
-        'Genset_Application_kW_Rating_PC2X',
-        'Genset_Standby_kVA_Rating_PC2X',
-        'Genset_Application_kVA_Rating_PC2X',
 
+        // Ratings
+        'Application_Nominal_Current_PC2X',
+        'Standby_Nominal_Current_PC2X',
+        'Standby_kW_Rating_PC2X',
+        'Application_kW_Rating_PC2X',
+        'Standby_kVA_Rating_PC2X',
+        'Application_kVA_Rating_PC2X',
+
+        // Fuel & Performance
         'Total_Fuel_Consumption_calculated',
         'Averagr_Engine_Speed',
         'Percent_Engine_Torque_or_Duty_Cycle',
@@ -114,30 +126,59 @@ export class AlarmsService {
         'Barometric_Absolute_Pressure',
         'Engine_Running_Time_calculated',
         'Fuel_Rate',
+
+        // V/Hz Settings
+        'V_Hz_Rolloff_Slope',
+        'V_Hz_Knee_Frequency',
+
+        // Run Status
+        'Genset_Run_SS',
       ],
+
+      // CUSTOM_KPIs - Calculated Parameters
       Custom_KPIs: [
-        'Load_Percent',
-        'Current_Imbalance',
-        'Voltage_Imbalance',
-        'Power_Loss_Factor',
-        'Thermal_Stress',
+        // Current calculations
+        'Phase-A Share',
+        'Phase-B Share',
+        'Phase-C Share',
         'Neutral_Current',
-        'Load_Stress',
+        'Current_Imbalance',
+
+        // Voltage calculations
+        'Voltage_Imbalance',
+
+        // Power calculations
+        'Power_Loss_Factor',
+
+        // Temperature calculations
         'Cooling_Margin',
-        // 'Cooling_Margin_C',
-        'Thermal_Stress',
-        // 'Thermal_Stress_C',
         'OTSR',
-        // 'OTSR_C',
-        'Lubrication_Risk_Index',
-        'Air_Fuel_Effectiveness',
-        'Specific_Fuel_Consumption',
-        'Heat_Rate',
+
+        // Fuel calculations
+        'Fuel_Consumption',
         'Fuel_Flow_Change',
-        'Mechanical_Stress',
+        'Fuel_Efficiency_Index',
+        'Specific_Fuel_Consumption',
+
+        // Performance calculations
+        'Air_Fuel_Effectiveness',
+        'Heat_Rate',
+
+        // Load calculations
+        'Load_Percent',
+        'Lubrication_Risk_Index',
+        'Mechanical_Stress_Index',
+        'Load_Stress_Index',
+        'Thermal_Stress_Index',
+        'Electrical_Stress_Index',
+
+        // Stability calculations
         'RPM_Stability_Index',
         'Oscillation_Index',
-        'Fuel_Consumption',
+
+        // Other calculations
+        'I2 Heating',
+        'Thermal_Efficiency',
       ],
     };
   }
@@ -153,8 +194,7 @@ export class AlarmsService {
 
   getMappedLocation(): Record<string, string[]> {
     return {
-      Genset: ['Genset1', 'Genset2'],
-      // Process: ['CT1', 'CT2'],
+      Genset: ['Generator1', 'Generator2'],
     };
   }
 
@@ -754,7 +794,7 @@ export class AlarmsService {
 
   //   // ✅ 1️⃣ Get Node-RED real-time data
   //   const resp = await firstValueFrom(
-  //     this.httpService.get('http://127.0.0.1:1880/navy'),
+  //     this.httpService.get('http://localhost:1880/navy'),
   //   );
 
   //   const payload = resp.data as Record<string, any>;
@@ -779,20 +819,107 @@ export class AlarmsService {
   //   const triggeredAlarms: any[] = [];
   //   const activeConfigIds = new Set<string>();
 
+  //   // ✅ Helper function for dynamic tag matching
+  //   const findMatchingTag = (
+  //     alarm: AlarmConfigWithPopulate,
+  //     payloadKeys: string[],
+  //   ): string | null => {
+  //     const alarmLocation = alarm.alarmLocation?.toLowerCase() || '';
+  //     const alarmParameter = alarm.alarmParameter.toLowerCase();
+
+  //     for (const tag of payloadKeys) {
+  //       const tagLower = tag.toLowerCase();
+
+  //       // Clean the tag by removing common suffixes
+  //       const cleanTag = tagLower.replace(
+  //         /_(pc2x|calculated|op|r1|r2|hmi113|aux\d+|extended)$/,
+  //         '',
+  //       );
+
+  //       // Case 1: Exact match with cleaned tag
+  //       if (cleanTag === `${alarmLocation}_${alarmParameter}`.toLowerCase()) {
+  //         return tag;
+  //       }
+
+  //       // Case 2: Match by parameter only (if location is empty)
+  //       if (!alarmLocation) {
+  //         const tagParam = cleanTag.split('_').pop();
+  //         if (tagParam === alarmParameter) {
+  //           return tag;
+  //         }
+  //       }
+
+  //       // Case 3: Parameter appears at the end of the tag
+  //       if (cleanTag.endsWith(`_${alarmParameter}`)) {
+  //         const possibleLocation = cleanTag.replace(`_${alarmParameter}`, '');
+  //         if (!alarmLocation || possibleLocation === alarmLocation) {
+  //           return tag;
+  //         }
+  //       }
+
+  //       // Case 4: Handle complex patterns like "Genset_Genset_L1L2_Voltage"
+  //       const parts = cleanTag.split('_');
+
+  //       // Try to match from the end backwards
+  //       for (let i = parts.length - 1; i >= 0; i--) {
+  //         const currentParam = parts.slice(i).join('_');
+
+  //         if (currentParam === alarmParameter) {
+  //           const currentLocation = parts.slice(0, i).join('_') || null;
+
+  //           // If no location specified in alarm, match any location
+  //           if (
+  //             !alarmLocation ||
+  //             !currentLocation ||
+  //             currentLocation.includes(alarmLocation)
+  //           ) {
+  //             return tag;
+  //           }
+  //         }
+  //       }
+
+  //       // Case 5: Partial match - parameter contains part of the tag
+  //       if (alarmParameter.includes('_')) {
+  //         const paramParts = alarmParameter.split('_');
+  //         const lastParamPart = paramParts[paramParts.length - 1];
+
+  //         if (cleanTag.endsWith(`_${lastParamPart}`)) {
+  //           return tag;
+  //         }
+  //       }
+  //     }
+
+  //     return null;
+  //   };
+
   //   // ✅ 3️⃣ Evaluate each alarm
   //   for (const alarm of alarms) {
-  //     const key = Object.keys(payload).find(
-  //       (k) => k.toLowerCase() === alarm.alarmParameter.toLowerCase(),
-  //     );
+  //     // 🔹 Find matching tag using dynamic matching
+  //     const matchingKey = findMatchingTag(alarm, Object.keys(payload));
 
-  //     if (!key) {
+  //     if (!matchingKey) {
   //       this.logger.debug(
-  //         `⚠️ Tag not found for alarm: ${alarm.alarmParameter}`,
+  //         `⚠️ Tag not found for alarm: ${alarm.alarmLocation || 'N/A'}_${alarm.alarmParameter}`,
+  //         {
+  //           alarmId: alarm._id,
+  //           alarmName: alarm.alarmName,
+  //           location: alarm.alarmLocation,
+  //           parameter: alarm.alarmParameter,
+  //         },
   //       );
   //       continue;
   //     }
 
-  //     const value = Number(payload[key]);
+  //     const value = Number(payload[matchingKey]);
+
+  //     // Check if value is valid
+  //     if (isNaN(value)) {
+  //       this.logger.warn(
+  //         `⚠️ Invalid value for tag ${matchingKey}: ${payload[matchingKey]}`,
+  //       );
+  //       continue;
+  //     }
+
   //     const rules = alarm.alarmTriggerConfig;
 
   //     if (!rules || !rules.thresholds?.length) {
@@ -850,10 +977,11 @@ export class AlarmsService {
   //       alarmId: occurrence.alarmID,
   //       alarmStatus: occurrence.alarmStatus,
   //       alarmName: alarm.alarmName,
-  //       location: alarm.alarmLocation,
-  //       subLocation: alarm.alarmSubLocation,
-  //       device: alarm.alarmDevice,
+  //       location: alarm.alarmLocation || matchingKey.split('_')[0],
+  //       subLocation: alarm.alarmSubLocation || null,
+  //       device: alarm.alarmDevice || null,
   //       parameter: alarm.alarmParameter,
+  //       matchedTag: matchingKey, // Added for debugging
   //       value,
   //       threshold: triggered,
   //       triggeredAt: occurrence.date,
@@ -867,7 +995,7 @@ export class AlarmsService {
   //     });
 
   //     this.logger.warn(
-  //       `🚨 Alarm triggered: ${alarm.alarmName} | Value: ${value} | Threshold: ${triggered}`,
+  //       `🚨 Alarm triggered: ${alarm.alarmName} | Value: ${value} | Threshold: ${triggered} | Tag: ${matchingKey}`,
   //     );
   //   }
 
@@ -878,6 +1006,13 @@ export class AlarmsService {
   //     `🏁 Alarm processing complete | Active alarms: ${triggeredAlarms.length}`,
   //   );
 
+  //   // ✅ 5️⃣ Log matching statistics for debugging
+  //   const matchedCount = triggeredAlarms.length;
+  //   const totalAlarms = alarms.length;
+  //   this.logger.debug(
+  //     `📊 Matching Statistics: ${matchedCount}/${totalAlarms} alarms matched with data`,
+  //   );
+
   //   return triggeredAlarms;
   // }
 
@@ -886,7 +1021,7 @@ export class AlarmsService {
 
     // ✅ 1️⃣ Get Node-RED real-time data
     const resp = await firstValueFrom(
-      this.httpService.get('http://13.234.241.103:1880/navy'),
+      this.httpService.get('http://localhost:1880/navy'),
     );
 
     const payload = resp.data as Record<string, any>;
@@ -911,31 +1046,197 @@ export class AlarmsService {
     const triggeredAlarms: any[] = [];
     const activeConfigIds = new Set<string>();
 
+    // ✅ SIMPLE & EFFECTIVE Helper function
+    const findMatchingTag = (
+      alarm: AlarmConfigWithPopulate,
+      payloadKeys: string[],
+    ): string | null => {
+      const alarmLocation = alarm.alarmLocation?.toLowerCase() || '';
+      const alarmParameter = alarm.alarmParameter.toLowerCase();
+
+      // 💡 **List of parameters that should be matched WITHOUT location**
+      const standaloneParams = [
+        // Battery & Electrical
+        'nominal_battery_voltage',
+        'battery_voltage_calculated',
+        'base_frequency_calculated',
+        'genset_frequency_op_calculated',
+
+        // Engine Parameters
+        'oil_pressure',
+        'boost_pressure',
+        'oil_temperature',
+        'coolant_temperature',
+        'intake_manifold_temperature_calculated',
+
+        // Fuel & Performance
+        'total_fuel_consumption_calculated',
+        'averagr_engine_speed',
+        'percent_engine_torque_or_duty_cycle',
+        'fuel_outlet_pressure_calculated',
+        'barometric_absolute_pressure',
+        'engine_running_time_calculated',
+        'fuel_rate',
+
+        // V/Hz Settings
+        'v_hz_rolloff_slope',
+        'v_hz_knee_frequency',
+
+        // Run Status
+        'genset_run_ss',
+
+        // Ratings
+        'application_nominal_current_pc2x',
+        'standby_nominal_current_pc2x',
+        'standby_kw_rating_pc2x',
+        'application_kw_rating_pc2x',
+        'standby_kva_rating_pc2x',
+        'application_kva_rating_pc2x',
+
+        // Power Factor
+        'total_power_factor_calculated',
+      ];
+
+      const isStandalone = standaloneParams.includes(alarmParameter);
+
+      // 🔍 **Strategy 1: For standalone params, match WITHOUT location**
+      if (isStandalone) {
+        for (const tag of payloadKeys) {
+          const tagLower = tag.toLowerCase();
+
+          // 💡 **IMPORTANT: Don't remove "calculated" suffix!**
+          // Just compare as-is or with minimal cleaning
+          const cleanTag = tagLower.replace(
+            /_(pc2x|op|r1|r2|hmi113|aux\d+|extended)$/,
+            '',
+          );
+
+          if (cleanTag === alarmParameter) {
+            this.logger.debug(
+              `✅ Standalone match: ${tag} = ${alarmParameter}`,
+            );
+            return tag;
+          }
+
+          // Also try exact match (no cleaning)
+          if (tagLower === alarmParameter) {
+            this.logger.debug(`✅ Exact match: ${tag} = ${alarmParameter}`);
+            return tag;
+          }
+        }
+      }
+
+      // 🔍 **Strategy 2: Try with location if provided**
+      if (alarmLocation) {
+        const expectedWithLocation = `${alarmLocation}_${alarmParameter}`;
+        for (const tag of payloadKeys) {
+          const tagLower = tag.toLowerCase();
+          const cleanTag = tagLower.replace(/_(pc2x|op)$/, '');
+
+          if (cleanTag === expectedWithLocation) {
+            this.logger.debug(
+              `✅ Location match: ${tag} = ${expectedWithLocation}`,
+            );
+            return tag;
+          }
+        }
+      }
+
+      // 🔍 **Strategy 3: Try parameter only (for all params)**
+      for (const tag of payloadKeys) {
+        const tagLower = tag.toLowerCase();
+
+        // Try exact parameter match first
+        if (tagLower === alarmParameter) {
+          this.logger.debug(
+            `✅ Exact parameter match: ${tag} = ${alarmParameter}`,
+          );
+          return tag;
+        }
+
+        // Try with minimal suffix removal
+        const cleanTag = tagLower.replace(/_(pc2x|op)$/, '');
+        if (cleanTag === alarmParameter) {
+          this.logger.debug(
+            `✅ Clean parameter match: ${tag} = ${alarmParameter}`,
+          );
+          return tag;
+        }
+
+        // Try parameter at the end
+        if (tagLower.endsWith(`_${alarmParameter}`)) {
+          this.logger.debug(`✅ End match: ${tag} ends with ${alarmParameter}`);
+          return tag;
+        }
+      }
+
+      return null;
+    };
+
     // ✅ 3️⃣ Evaluate each alarm
     for (const alarm of alarms) {
-      // 🔹 Match Node-RED tags like "Genset_L1N_Voltage"
-      const matchingKey = Object.keys(payload).find((tag) => {
-        const [tagLocation, ...tagParts] = tag.split('_');
-        const tagParameter = tagParts.join('_'); // e.g. L1N_Voltage
-
-        const matchesLocation =
-          !alarm.alarmLocation ||
-          tagLocation.toLowerCase() === alarm.alarmLocation.toLowerCase();
-
-        const matchesParameter =
-          tagParameter.toLowerCase() === alarm.alarmParameter.toLowerCase();
-
-        return matchesParameter && matchesLocation;
-      });
+      // 🔹 Find matching tag
+      const matchingKey = findMatchingTag(alarm, Object.keys(payload));
 
       if (!matchingKey) {
         this.logger.debug(
-          `⚠️ Tag not found for alarm: ${alarm.alarmLocation}_${alarm.alarmParameter}`,
+          `⚠️ Tag not found for alarm: ${alarm.alarmLocation || 'N/A'}_${alarm.alarmParameter}`,
+          {
+            alarmId: alarm._id,
+            alarmName: alarm.alarmName,
+            location: alarm.alarmLocation,
+            parameter: alarm.alarmParameter,
+          },
         );
+
+        // 💡 **DEBUG: Show what's actually in payload**
+        const payloadKeys = Object.keys(payload);
+        const similarTags = payloadKeys.filter((tag) =>
+          tag
+            .toLowerCase()
+            .includes(
+              alarm.alarmParameter.toLowerCase().replace('_calculated', ''),
+            ),
+        );
+
+        if (similarTags.length > 0) {
+          this.logger.debug(
+            `🔍 Similar tags in payload: ${similarTags.slice(0, 5).join(', ')}`,
+          );
+
+          // Check if it's a "calculated" issue
+          if (alarm.alarmParameter.includes('_calculated')) {
+            const withoutCalculated = alarm.alarmParameter.replace(
+              '_calculated',
+              '',
+            );
+            const tagsWithoutCalculated = payloadKeys.filter((tag) =>
+              tag.toLowerCase().includes(withoutCalculated.toLowerCase()),
+            );
+            if (tagsWithoutCalculated.length > 0) {
+              this.logger.debug(
+                `🔍 Try without "_calculated": ${withoutCalculated}`,
+              );
+              this.logger.debug(
+                `🔍 Available: ${tagsWithoutCalculated.slice(0, 3).join(', ')}`,
+              );
+            }
+          }
+        }
+
         continue;
       }
 
       const value = Number(payload[matchingKey]);
+
+      // Check if value is valid
+      if (isNaN(value)) {
+        this.logger.warn(
+          `⚠️ Invalid value for tag ${matchingKey}: ${payload[matchingKey]}`,
+        );
+        continue;
+      }
+
       const rules = alarm.alarmTriggerConfig;
 
       if (!rules || !rules.thresholds?.length) {
@@ -997,6 +1298,7 @@ export class AlarmsService {
         subLocation: alarm.alarmSubLocation || null,
         device: alarm.alarmDevice || null,
         parameter: alarm.alarmParameter,
+        matchedTag: matchingKey,
         value,
         threshold: triggered,
         triggeredAt: occurrence.date,
@@ -1010,7 +1312,7 @@ export class AlarmsService {
       });
 
       this.logger.warn(
-        `🚨 Alarm triggered: ${alarm.alarmName} | Value: ${value} | Threshold: ${triggered}`,
+        `🚨 Alarm triggered: ${alarm.alarmName} | Value: ${value} | Threshold: ${triggered} | Tag: ${matchingKey}`,
       );
     }
 
@@ -1019,6 +1321,13 @@ export class AlarmsService {
 
     this.logger.log(
       `🏁 Alarm processing complete | Active alarms: ${triggeredAlarms.length}`,
+    );
+
+    // ✅ 5️⃣ Log matching statistics for debugging
+    const matchedCount = triggeredAlarms.length;
+    const totalAlarms = alarms.length;
+    this.logger.debug(
+      `📊 Matching Statistics: ${matchedCount}/${totalAlarms} alarms matched with data`,
     );
 
     return triggeredAlarms;
