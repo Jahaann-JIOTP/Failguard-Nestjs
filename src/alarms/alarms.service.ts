@@ -1019,10 +1019,14 @@ export class AlarmsService {
   async processActiveAlarms() {
     this.logger.log('🚀 Starting alarm processing...');
 
+    const noderedlink = process.env.NODE_RED_LINK;
+
+    if (!noderedlink) {
+      throw new Error('NODE_RED_LINK is not defined in environment variables');
+    }
+
     // ✅ 1️⃣ Get Node-RED real-time data
-    const resp = await firstValueFrom(
-      this.httpService.get('http://localhost:1880/navy'),
-    );
+    const resp = await firstValueFrom(this.httpService.get(noderedlink));
 
     const payload = resp.data as Record<string, any>;
     if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
