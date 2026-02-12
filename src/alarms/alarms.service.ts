@@ -794,14 +794,10 @@ export class AlarmsService {
   // async processActiveAlarms() {
   //   this.logger.log('🚀 Starting alarm processing...');
 
-  //   const noderedlink = process.env.NODE_RED_LINK;
-
-  //   if (!noderedlink) {
-  //     throw new Error('NODE_RED_LINK is not defined in environment variables');
-  //   }
-
   //   // ✅ 1️⃣ Get Node-RED real-time data
-  //   const resp = await firstValueFrom(this.httpService.get(noderedlink));
+  //   const resp = await firstValueFrom(
+  //     this.httpService.get('http://localhost:1880/navy'),
+  //   );
 
   //   const payload = resp.data as Record<string, any>;
   //   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
@@ -813,7 +809,26 @@ export class AlarmsService {
   //     `✅ Node-RED data received (${Object.keys(payload).length} tags)`,
   //   );
 
-  //   // ✅ 2️⃣ Fetch all alarms from DB
+  //   // ✅ 2️⃣ Calculate Custom KPIs using your FormulasService
+  //   const calculatedKPIs = await this.calculateCustomKPIs(payload);
+
+  //   // ✅ 3️⃣ Combine Direct and Calculated data
+  //   const allData = {
+  //     ...payload, // Direct KPIs from Node-RED
+  //     ...calculatedKPIs, // Custom KPIs from calculations
+  //   };
+
+  //   this.logger.debug(
+  //     `📊 Data sources: ${Object.keys(payload).length} direct, ${Object.keys(calculatedKPIs).length} calculated`,
+  //   );
+
+  //   // Log some calculated values for debugging
+  //   const sampleCalculated = Object.keys(calculatedKPIs).slice(0, 5);
+  //   this.logger.debug(
+  //     `📈 Sample calculated KPIs: ${sampleCalculated.join(', ')}`,
+  //   );
+
+  //   // ✅ 4️⃣ Fetch all alarms from DB
   //   const alarms = (await this.alarmsModel
   //     .find()
   //     .populate<{ alarmTriggerConfig: AlarmRulesSet }>('alarmTriggerConfig')
@@ -825,193 +840,182 @@ export class AlarmsService {
   //   const triggeredAlarms: any[] = [];
   //   const activeConfigIds = new Set<string>();
 
-  //   // ✅ SIMPLE & EFFECTIVE Helper function
+  //   // ✅ Helper function to identify parameter type
+  //   const getParameterType = (parameter: string): 'direct' | 'custom' => {
+  //     const mapping = this.meterSuffixMapping();
+
+  //     // Check if in Direct_KPIs (case insensitive)
+  //     const isDirect = mapping.Direct_KPIs.some(
+  //       (directParam) => directParam.toLowerCase() === parameter.toLowerCase(),
+  //     );
+
+  //     if (isDirect) return 'direct';
+
+  //     // Check if in Custom_KPIs (case insensitive)
+  //     const isCustom = mapping.Custom_KPIs.some(
+  //       (customParam) => customParam.toLowerCase() === parameter.toLowerCase(),
+  //     );
+
+  //     return isCustom ? 'custom' : 'direct'; // default to direct if unknown
+  //   };
+
+  //   // ✅ Simple matching function for BOTH direct and custom KPIs
   //   const findMatchingTag = (
   //     alarm: AlarmConfigWithPopulate,
-  //     payloadKeys: string[],
+  //     dataKeys: string[],
   //   ): string | null => {
   //     const alarmLocation = alarm.alarmLocation?.toLowerCase() || '';
   //     const alarmParameter = alarm.alarmParameter.toLowerCase();
+  //     const paramType = getParameterType(alarm.alarmParameter);
 
-  //     // 💡 **List of parameters that should be matched WITHOUT location**
-  //     const standaloneParams = [
-  //       // Battery & Electrical
-  //       'nominal_battery_voltage',
-  //       'battery_voltage_calculated',
-  //       'base_frequency_calculated',
-  //       'genset_frequency_op_calculated',
-
-  //       // Engine Parameters
-  //       'oil_pressure',
-  //       'boost_pressure',
-  //       'oil_temperature',
-  //       'coolant_temperature',
-  //       'intake_manifold_temperature_calculated',
-
-  //       // Fuel & Performance
-  //       'total_fuel_consumption_calculated',
-  //       'averagr_engine_speed',
-  //       'percent_engine_torque_or_duty_cycle',
-  //       'fuel_outlet_pressure_calculated',
-  //       'barometric_absolute_pressure',
-  //       'engine_running_time_calculated',
-  //       'fuel_rate',
-
-  //       // V/Hz Settings
-  //       'v_hz_rolloff_slope',
-  //       'v_hz_knee_frequency',
-
-  //       // Run Status
-  //       'genset_run_ss',
-
-  //       // Ratings
-  //       'application_nominal_current_pc2x',
-  //       'standby_nominal_current_pc2x',
-  //       'standby_kw_rating_pc2x',
-  //       'application_kw_rating_pc2x',
-  //       'standby_kva_rating_pc2x',
-  //       'application_kva_rating_pc2x',
-
-  //       // Power Factor
-  //       'total_power_factor_calculated',
-  //     ];
-
-  //     const isStandalone = standaloneParams.includes(alarmParameter);
-
-  //     // 🔍 **Strategy 1: For standalone params, match WITHOUT location**
-  //     if (isStandalone) {
-  //       for (const tag of payloadKeys) {
+  //     // 💡 **For CUSTOM parameters - NO location prefix**
+  //     if (paramType === 'custom') {
+  //       // Custom KPIs don't have location prefix
+  //       for (const tag of dataKeys) {
   //         const tagLower = tag.toLowerCase();
-
-  //         // 💡 **IMPORTANT: Don't remove "calculated" suffix!**
-  //         // Just compare as-is or with minimal cleaning
-  //         const cleanTag = tagLower.replace(
-  //           /_(pc2x|op|r1|r2|hmi113|aux\d+|extended)$/,
-  //           '',
-  //         );
-
-  //         if (cleanTag === alarmParameter) {
-  //           this.logger.debug(
-  //             `✅ Standalone match: ${tag} = ${alarmParameter}`,
-  //           );
-  //           return tag;
-  //         }
-
-  //         // Also try exact match (no cleaning)
   //         if (tagLower === alarmParameter) {
-  //           this.logger.debug(`✅ Exact match: ${tag} = ${alarmParameter}`);
-  //           return tag;
-  //         }
-  //       }
-  //     }
-
-  //     // 🔍 **Strategy 2: Try with location if provided**
-  //     if (alarmLocation) {
-  //       const expectedWithLocation = `${alarmLocation}_${alarmParameter}`;
-  //       for (const tag of payloadKeys) {
-  //         const tagLower = tag.toLowerCase();
-  //         const cleanTag = tagLower.replace(/_(pc2x|op)$/, '');
-
-  //         if (cleanTag === expectedWithLocation) {
   //           this.logger.debug(
-  //             `✅ Location match: ${tag} = ${expectedWithLocation}`,
+  //             `✅ Found CUSTOM KPI: ${tag} = ${alarmParameter}`,
   //           );
   //           return tag;
   //         }
   //       }
+  //       return null;
   //     }
 
-  //     // 🔍 **Strategy 3: Try parameter only (for all params)**
-  //     for (const tag of payloadKeys) {
-  //       const tagLower = tag.toLowerCase();
+  //     // 💡 **For DIRECT parameters**
+  //     if (paramType === 'direct') {
+  //       // List of standalone parameters (no location needed)
+  //       const standaloneParams = [
+  //         // Battery & Electrical
+  //         'nominal_battery_voltage',
+  //         'battery_voltage_calculated',
+  //         'base_frequency_calculated',
+  //         'genset_frequency_op_calculated',
 
-  //       // Try exact parameter match first
-  //       if (tagLower === alarmParameter) {
-  //         this.logger.debug(
-  //           `✅ Exact parameter match: ${tag} = ${alarmParameter}`,
-  //         );
-  //         return tag;
+  //         // Engine Parameters
+  //         'oil_pressure',
+  //         'boost_pressure',
+  //         'oil_temperature',
+  //         'coolant_temperature',
+  //         'intake_manifold_temperature_calculated',
+
+  //         // Fuel & Performance
+  //         'total_fuel_consumption_calculated',
+  //         'averagr_engine_speed',
+  //         'percent_engine_torque_or_duty_cycle',
+  //         'fuel_outlet_pressure_calculated',
+  //         'barometric_absolute_pressure',
+  //         'engine_running_time_calculated',
+  //         'fuel_rate',
+
+  //         // V/Hz Settings
+  //         'v_hz_rolloff_slope',
+  //         'v_hz_knee_frequency',
+
+  //         // Run Status
+  //         'genset_run_ss',
+
+  //         // Ratings
+  //         'application_nominal_current_pc2x',
+  //         'standby_nominal_current_pc2x',
+  //         'standby_kw_rating_pc2x',
+  //         'application_kw_rating_pc2x',
+  //         'standby_kva_rating_pc2x',
+  //         'application_kva_rating_pc2x',
+
+  //         // Power Factor
+  //         'total_power_factor_calculated',
+  //       ];
+
+  //       const isStandalone = standaloneParams.includes(alarmParameter);
+
+  //       // Strategy 1: For standalone params, match WITHOUT location
+  //       if (isStandalone) {
+  //         for (const tag of dataKeys) {
+  //           const tagLower = tag.toLowerCase();
+
+  //           // Try exact match first
+  //           if (tagLower === alarmParameter) {
+  //             this.logger.debug(
+  //               `✅ Found standalone DIRECT: ${tag} = ${alarmParameter}`,
+  //             );
+  //             return tag;
+  //           }
+
+  //           // Try with minimal suffix removal (keep _calculated)
+  //           const cleanTag = tagLower.replace(
+  //             /_(pc2x|op|r1|r2|hmi113|aux\d+|extended)$/,
+  //             '',
+  //           );
+  //           if (cleanTag === alarmParameter) {
+  //             this.logger.debug(
+  //               `✅ Found cleaned standalone: ${tag} = ${alarmParameter}`,
+  //             );
+  //             return tag;
+  //           }
+  //         }
   //       }
 
-  //       // Try with minimal suffix removal
-  //       const cleanTag = tagLower.replace(/_(pc2x|op)$/, '');
-  //       if (cleanTag === alarmParameter) {
-  //         this.logger.debug(
-  //           `✅ Clean parameter match: ${tag} = ${alarmParameter}`,
-  //         );
-  //         return tag;
+  //       // Strategy 2: Try with location if provided
+  //       if (alarmLocation) {
+  //         const expectedWithLocation = `${alarmLocation}_${alarmParameter}`;
+  //         for (const tag of dataKeys) {
+  //           const tagLower = tag.toLowerCase();
+  //           const cleanTag = tagLower.replace(/_(pc2x|op)$/, '');
+
+  //           if (cleanTag === expectedWithLocation) {
+  //             this.logger.debug(
+  //               `✅ Found location-based: ${tag} = ${expectedWithLocation}`,
+  //             );
+  //             return tag;
+  //           }
+  //         }
   //       }
 
-  //       // Try parameter at the end
-  //       if (tagLower.endsWith(`_${alarmParameter}`)) {
-  //         this.logger.debug(`✅ End match: ${tag} ends with ${alarmParameter}`);
-  //         return tag;
+  //       // Strategy 3: Try parameter only (fallback for all)
+  //       for (const tag of dataKeys) {
+  //         const tagLower = tag.toLowerCase();
+
+  //         if (tagLower === alarmParameter) {
+  //           this.logger.debug(
+  //             `✅ Found exact parameter: ${tag} = ${alarmParameter}`,
+  //           );
+  //           return tag;
+  //         }
   //       }
   //     }
 
   //     return null;
   //   };
 
-  //   // ✅ 3️⃣ Evaluate each alarm
+  //   // ✅ 5️⃣ Evaluate each alarm
   //   for (const alarm of alarms) {
+  //     const paramType = getParameterType(alarm.alarmParameter);
+
   //     // 🔹 Find matching tag
-  //     const matchingKey = findMatchingTag(alarm, Object.keys(payload));
+  //     const matchingKey = findMatchingTag(alarm, Object.keys(allData));
 
   //     if (!matchingKey) {
   //       this.logger.debug(
-  //         `⚠️ Tag not found for alarm: ${alarm.alarmLocation || 'N/A'}_${alarm.alarmParameter}`,
+  //         `⚠️ ${paramType.toUpperCase()} tag not found: ${alarm.alarmLocation || 'N/A'}_${alarm.alarmParameter}`,
   //         {
   //           alarmId: alarm._id,
   //           alarmName: alarm.alarmName,
+  //           type: paramType,
   //           location: alarm.alarmLocation,
   //           parameter: alarm.alarmParameter,
   //         },
   //       );
-
-  //       // 💡 **DEBUG: Show what's actually in payload**
-  //       const payloadKeys = Object.keys(payload);
-  //       const similarTags = payloadKeys.filter((tag) =>
-  //         tag
-  //           .toLowerCase()
-  //           .includes(
-  //             alarm.alarmParameter.toLowerCase().replace('_calculated', ''),
-  //           ),
-  //       );
-
-  //       if (similarTags.length > 0) {
-  //         this.logger.debug(
-  //           `🔍 Similar tags in payload: ${similarTags.slice(0, 5).join(', ')}`,
-  //         );
-
-  //         // Check if it's a "calculated" issue
-  //         if (alarm.alarmParameter.includes('_calculated')) {
-  //           const withoutCalculated = alarm.alarmParameter.replace(
-  //             '_calculated',
-  //             '',
-  //           );
-  //           const tagsWithoutCalculated = payloadKeys.filter((tag) =>
-  //             tag.toLowerCase().includes(withoutCalculated.toLowerCase()),
-  //           );
-  //           if (tagsWithoutCalculated.length > 0) {
-  //             this.logger.debug(
-  //               `🔍 Try without "_calculated": ${withoutCalculated}`,
-  //             );
-  //             this.logger.debug(
-  //               `🔍 Available: ${tagsWithoutCalculated.slice(0, 3).join(', ')}`,
-  //             );
-  //           }
-  //         }
-  //       }
-
   //       continue;
   //     }
 
-  //     const value = Number(payload[matchingKey]);
+  //     const value = Number(allData[matchingKey]);
 
   //     // Check if value is valid
   //     if (isNaN(value)) {
   //       this.logger.warn(
-  //         `⚠️ Invalid value for tag ${matchingKey}: ${payload[matchingKey]}`,
+  //         `⚠️ Invalid value for ${paramType} tag ${matchingKey}: ${allData[matchingKey]}`,
   //       );
   //       continue;
   //     }
@@ -1077,6 +1081,7 @@ export class AlarmsService {
   //       subLocation: alarm.alarmSubLocation || null,
   //       device: alarm.alarmDevice || null,
   //       parameter: alarm.alarmParameter,
+  //       parameterType: paramType, // Add parameter type
   //       matchedTag: matchingKey,
   //       value,
   //       threshold: triggered,
@@ -1091,34 +1096,29 @@ export class AlarmsService {
   //     });
 
   //     this.logger.warn(
-  //       `🚨 Alarm triggered: ${alarm.alarmName} | Value: ${value} | Threshold: ${triggered} | Tag: ${matchingKey}`,
+  //       `🚨 ${paramType.toUpperCase()} alarm triggered: ${alarm.alarmName} | Value: ${value} | Threshold: ${triggered}`,
   //     );
   //   }
 
-  //   // ✅ 4️⃣ Deactivate resolved alarms
+  //   // ✅ 6️⃣ Deactivate resolved alarms
   //   await this.deactivateResolvedAlarms(activeConfigIds);
 
   //   this.logger.log(
   //     `🏁 Alarm processing complete | Active alarms: ${triggeredAlarms.length}`,
   //   );
 
-  //   // ✅ 5️⃣ Log matching statistics for debugging
-  //   const matchedCount = triggeredAlarms.length;
-  //   const totalAlarms = alarms.length;
-  //   this.logger.debug(
-  //     `📊 Matching Statistics: ${matchedCount}/${totalAlarms} alarms matched with data`,
-  //   );
-
   //   return triggeredAlarms;
   // }
+
+  // ✅ Calculate Custom KPIs using FormulasService
 
   async processActiveAlarms() {
     this.logger.log('🚀 Starting alarm processing...');
 
+    const noderedlink = process.env.NODE_RED_LINK as string;
+
     // ✅ 1️⃣ Get Node-RED real-time data
-    const resp = await firstValueFrom(
-      this.httpService.get('http://43.204.118.114:6881/navy'),
-    );
+    const resp = await firstValueFrom(this.httpService.get(noderedlink));
 
     const payload = resp.data as Record<string, any>;
     if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
@@ -1130,6 +1130,50 @@ export class AlarmsService {
       `✅ Node-RED data received (${Object.keys(payload).length} tags)`,
     );
 
+    // 🔴 CONDITION: Check if Genset current values are zero
+    const currentTags = [
+      'Genset_L1_Current',
+      'Genset_L2_Current',
+      'Genset_L3_Current',
+      'Genset_Avg_Current',
+    ];
+
+    const allCurrentsZero = currentTags.every((tag) => {
+      const value = payload[tag];
+      const numValue = Number(value);
+      return !isNaN(numValue) && numValue === 0;
+    });
+
+    if (allCurrentsZero) {
+      this.logger.warn(
+        '⏸️ All Genset currents are ZERO - System appears to be OFF',
+      );
+      this.logger.warn(
+        '⏸️ Skipping alarm processing - No alarms will be triggered while currents are zero',
+      );
+
+      // 🔴 Deactivate all active alarms when system is off
+      const activeAlarms = await this.alarmOccurrenceModel
+        .find({ alarmStatus: true })
+        .distinct('alarmConfigId');
+
+      if (activeAlarms.length > 0) {
+        await this.deactivateResolvedAlarms(
+          new Set(activeAlarms.map((id) => id.toString())),
+        );
+        this.logger.log(
+          `🛑 Deactivated ${activeAlarms.length} active alarms - Genset is OFF`,
+        );
+      }
+
+      return []; // Return empty array - no alarms triggered
+    }
+
+    // ✅ Continue with alarm processing only if currents are NOT all zero
+    this.logger.log(
+      '✅ Genset currents are non-zero, proceeding with alarm processing...',
+    );
+
     // ✅ 2️⃣ Calculate Custom KPIs using your FormulasService
     const calculatedKPIs = await this.calculateCustomKPIs(payload);
 
@@ -1138,16 +1182,6 @@ export class AlarmsService {
       ...payload, // Direct KPIs from Node-RED
       ...calculatedKPIs, // Custom KPIs from calculations
     };
-
-    this.logger.debug(
-      `📊 Data sources: ${Object.keys(payload).length} direct, ${Object.keys(calculatedKPIs).length} calculated`,
-    );
-
-    // Log some calculated values for debugging
-    const sampleCalculated = Object.keys(calculatedKPIs).slice(0, 5);
-    this.logger.debug(
-      `📈 Sample calculated KPIs: ${sampleCalculated.join(', ')}`,
-    );
 
     // ✅ 4️⃣ Fetch all alarms from DB
     const alarms = (await this.alarmsModel
@@ -1402,7 +1436,7 @@ export class AlarmsService {
         subLocation: alarm.alarmSubLocation || null,
         device: alarm.alarmDevice || null,
         parameter: alarm.alarmParameter,
-        parameterType: paramType, // Add parameter type
+        parameterType: paramType,
         matchedTag: matchingKey,
         value,
         threshold: triggered,
@@ -1431,7 +1465,6 @@ export class AlarmsService {
     return triggeredAlarms;
   }
 
-  // ✅ Calculate Custom KPIs using FormulasService
   private async calculateCustomKPIs(
     payload: Record<string, any>,
   ): Promise<Record<string, number>> {
