@@ -1271,11 +1271,35 @@ export class DashboardService {
       console.log('  $gte →', startISO);
       console.log('  $lte →', endISO);
     } else if (mode === 'live') {
-      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000); // 1 hour
-      matchStage.timestamp = { $gte: oneHourAgo.toISOString() };
-      matchStage.Genset_Run_SS = { $gte: 1 };
+      // const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000); // 1 hour
+      // matchStage.timestamp = { $gte: oneHourAgo.toISOString() };
+      // // matchStage.Genset_Run_SS = { $gte: 1 };
       // matchStage.Genset_Run_SS = 0;
-      console.log('Live mode → Last 1 hour with Genset_Run_SS >= 1');
+      // console.log('Live mode → Last 1 hour with Genset_Run_SS >= 1');
+
+      // ✅ SIMPLE FIX: Sirf date part plus time zone
+      const now = new Date();
+      const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+
+      // YYYY-MM-DDTHH:MM:SS+05:00 format
+      const year = oneHourAgo.getFullYear();
+      const month = String(oneHourAgo.getMonth() + 1).padStart(2, '0');
+      const day = String(oneHourAgo.getDate()).padStart(2, '0');
+      const hours = String(oneHourAgo.getHours()).padStart(2, '0');
+      const minutes = String(oneHourAgo.getMinutes()).padStart(2, '0');
+      const seconds = String(oneHourAgo.getSeconds()).padStart(2, '0');
+
+      const formattedTime = `${year}-${month}-${day}T${hours}:${minutes}:${seconds}+05:00`;
+
+      matchStage.timestamp = { $gte: formattedTime };
+      // matchStage.Genset_Run_SS = 0;
+      matchStage.Genset_Run_SS = { $gte: 1 };
+
+      console.log('Live mode filter:', formattedTime);
+      console.log(
+        'Current time:',
+        new Date().toISOString().replace('Z', '+05:00'),
+      );
     }
 
     if (Object.keys(matchStage).length > 0) {
