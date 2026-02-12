@@ -10,7 +10,6 @@ export const DatabaseProvider: Provider = {
     const client = new MongoClient(uri);
     await client.connect();
     console.log('✅ Connected to MongoDB');
-    // return client.db('iotdb');
     return client.db('navy');
   },
 };

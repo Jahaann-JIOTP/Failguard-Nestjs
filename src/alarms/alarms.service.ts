@@ -33,6 +33,7 @@ import { UpdateAlarmDto } from './dto/update-alarm.dto';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import { getTimeRange, TimeRangePayload } from 'src/helpers/generalTimeFilter';
+import { FormulasService } from 'src/trends/formulas.service';
 
 type AlarmConfigWithPopulate = alarmsConfiguration & {
   _id?: any;
@@ -52,6 +53,7 @@ export class AlarmsService {
     @InjectModel(AlarmOccurrence.name)
     private alarmOccurrenceModel: Model<AlarmsOccurrenceDocument>,
     private readonly httpService: HttpService,
+    private readonly formulasService: FormulasService,
   ) {}
 
   private readonly intervalsSec = [5, 15, 30, 60, 120];
@@ -792,10 +794,14 @@ export class AlarmsService {
   // async processActiveAlarms() {
   //   this.logger.log('🚀 Starting alarm processing...');
 
+  //   const noderedlink = process.env.NODE_RED_LINK;
+
+  //   if (!noderedlink) {
+  //     throw new Error('NODE_RED_LINK is not defined in environment variables');
+  //   }
+
   //   // ✅ 1️⃣ Get Node-RED real-time data
-  //   const resp = await firstValueFrom(
-  //     this.httpService.get('http://localhost:1880/navy'),
-  //   );
+  //   const resp = await firstValueFrom(this.httpService.get(noderedlink));
 
   //   const payload = resp.data as Record<string, any>;
   //   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
@@ -819,7 +825,7 @@ export class AlarmsService {
   //   const triggeredAlarms: any[] = [];
   //   const activeConfigIds = new Set<string>();
 
-  //   // ✅ Helper function for dynamic tag matching
+  //   // ✅ SIMPLE & EFFECTIVE Helper function
   //   const findMatchingTag = (
   //     alarm: AlarmConfigWithPopulate,
   //     payloadKeys: string[],
@@ -827,65 +833,119 @@ export class AlarmsService {
   //     const alarmLocation = alarm.alarmLocation?.toLowerCase() || '';
   //     const alarmParameter = alarm.alarmParameter.toLowerCase();
 
+  //     // 💡 **List of parameters that should be matched WITHOUT location**
+  //     const standaloneParams = [
+  //       // Battery & Electrical
+  //       'nominal_battery_voltage',
+  //       'battery_voltage_calculated',
+  //       'base_frequency_calculated',
+  //       'genset_frequency_op_calculated',
+
+  //       // Engine Parameters
+  //       'oil_pressure',
+  //       'boost_pressure',
+  //       'oil_temperature',
+  //       'coolant_temperature',
+  //       'intake_manifold_temperature_calculated',
+
+  //       // Fuel & Performance
+  //       'total_fuel_consumption_calculated',
+  //       'averagr_engine_speed',
+  //       'percent_engine_torque_or_duty_cycle',
+  //       'fuel_outlet_pressure_calculated',
+  //       'barometric_absolute_pressure',
+  //       'engine_running_time_calculated',
+  //       'fuel_rate',
+
+  //       // V/Hz Settings
+  //       'v_hz_rolloff_slope',
+  //       'v_hz_knee_frequency',
+
+  //       // Run Status
+  //       'genset_run_ss',
+
+  //       // Ratings
+  //       'application_nominal_current_pc2x',
+  //       'standby_nominal_current_pc2x',
+  //       'standby_kw_rating_pc2x',
+  //       'application_kw_rating_pc2x',
+  //       'standby_kva_rating_pc2x',
+  //       'application_kva_rating_pc2x',
+
+  //       // Power Factor
+  //       'total_power_factor_calculated',
+  //     ];
+
+  //     const isStandalone = standaloneParams.includes(alarmParameter);
+
+  //     // 🔍 **Strategy 1: For standalone params, match WITHOUT location**
+  //     if (isStandalone) {
+  //       for (const tag of payloadKeys) {
+  //         const tagLower = tag.toLowerCase();
+
+  //         // 💡 **IMPORTANT: Don't remove "calculated" suffix!**
+  //         // Just compare as-is or with minimal cleaning
+  //         const cleanTag = tagLower.replace(
+  //           /_(pc2x|op|r1|r2|hmi113|aux\d+|extended)$/,
+  //           '',
+  //         );
+
+  //         if (cleanTag === alarmParameter) {
+  //           this.logger.debug(
+  //             `✅ Standalone match: ${tag} = ${alarmParameter}`,
+  //           );
+  //           return tag;
+  //         }
+
+  //         // Also try exact match (no cleaning)
+  //         if (tagLower === alarmParameter) {
+  //           this.logger.debug(`✅ Exact match: ${tag} = ${alarmParameter}`);
+  //           return tag;
+  //         }
+  //       }
+  //     }
+
+  //     // 🔍 **Strategy 2: Try with location if provided**
+  //     if (alarmLocation) {
+  //       const expectedWithLocation = `${alarmLocation}_${alarmParameter}`;
+  //       for (const tag of payloadKeys) {
+  //         const tagLower = tag.toLowerCase();
+  //         const cleanTag = tagLower.replace(/_(pc2x|op)$/, '');
+
+  //         if (cleanTag === expectedWithLocation) {
+  //           this.logger.debug(
+  //             `✅ Location match: ${tag} = ${expectedWithLocation}`,
+  //           );
+  //           return tag;
+  //         }
+  //       }
+  //     }
+
+  //     // 🔍 **Strategy 3: Try parameter only (for all params)**
   //     for (const tag of payloadKeys) {
   //       const tagLower = tag.toLowerCase();
 
-  //       // Clean the tag by removing common suffixes
-  //       const cleanTag = tagLower.replace(
-  //         /_(pc2x|calculated|op|r1|r2|hmi113|aux\d+|extended)$/,
-  //         '',
-  //       );
-
-  //       // Case 1: Exact match with cleaned tag
-  //       if (cleanTag === `${alarmLocation}_${alarmParameter}`.toLowerCase()) {
+  //       // Try exact parameter match first
+  //       if (tagLower === alarmParameter) {
+  //         this.logger.debug(
+  //           `✅ Exact parameter match: ${tag} = ${alarmParameter}`,
+  //         );
   //         return tag;
   //       }
 
-  //       // Case 2: Match by parameter only (if location is empty)
-  //       if (!alarmLocation) {
-  //         const tagParam = cleanTag.split('_').pop();
-  //         if (tagParam === alarmParameter) {
-  //           return tag;
-  //         }
+  //       // Try with minimal suffix removal
+  //       const cleanTag = tagLower.replace(/_(pc2x|op)$/, '');
+  //       if (cleanTag === alarmParameter) {
+  //         this.logger.debug(
+  //           `✅ Clean parameter match: ${tag} = ${alarmParameter}`,
+  //         );
+  //         return tag;
   //       }
 
-  //       // Case 3: Parameter appears at the end of the tag
-  //       if (cleanTag.endsWith(`_${alarmParameter}`)) {
-  //         const possibleLocation = cleanTag.replace(`_${alarmParameter}`, '');
-  //         if (!alarmLocation || possibleLocation === alarmLocation) {
-  //           return tag;
-  //         }
-  //       }
-
-  //       // Case 4: Handle complex patterns like "Genset_Genset_L1L2_Voltage"
-  //       const parts = cleanTag.split('_');
-
-  //       // Try to match from the end backwards
-  //       for (let i = parts.length - 1; i >= 0; i--) {
-  //         const currentParam = parts.slice(i).join('_');
-
-  //         if (currentParam === alarmParameter) {
-  //           const currentLocation = parts.slice(0, i).join('_') || null;
-
-  //           // If no location specified in alarm, match any location
-  //           if (
-  //             !alarmLocation ||
-  //             !currentLocation ||
-  //             currentLocation.includes(alarmLocation)
-  //           ) {
-  //             return tag;
-  //           }
-  //         }
-  //       }
-
-  //       // Case 5: Partial match - parameter contains part of the tag
-  //       if (alarmParameter.includes('_')) {
-  //         const paramParts = alarmParameter.split('_');
-  //         const lastParamPart = paramParts[paramParts.length - 1];
-
-  //         if (cleanTag.endsWith(`_${lastParamPart}`)) {
-  //           return tag;
-  //         }
+  //       // Try parameter at the end
+  //       if (tagLower.endsWith(`_${alarmParameter}`)) {
+  //         this.logger.debug(`✅ End match: ${tag} ends with ${alarmParameter}`);
+  //         return tag;
   //       }
   //     }
 
@@ -894,7 +954,7 @@ export class AlarmsService {
 
   //   // ✅ 3️⃣ Evaluate each alarm
   //   for (const alarm of alarms) {
-  //     // 🔹 Find matching tag using dynamic matching
+  //     // 🔹 Find matching tag
   //     const matchingKey = findMatchingTag(alarm, Object.keys(payload));
 
   //     if (!matchingKey) {
@@ -907,6 +967,42 @@ export class AlarmsService {
   //           parameter: alarm.alarmParameter,
   //         },
   //       );
+
+  //       // 💡 **DEBUG: Show what's actually in payload**
+  //       const payloadKeys = Object.keys(payload);
+  //       const similarTags = payloadKeys.filter((tag) =>
+  //         tag
+  //           .toLowerCase()
+  //           .includes(
+  //             alarm.alarmParameter.toLowerCase().replace('_calculated', ''),
+  //           ),
+  //       );
+
+  //       if (similarTags.length > 0) {
+  //         this.logger.debug(
+  //           `🔍 Similar tags in payload: ${similarTags.slice(0, 5).join(', ')}`,
+  //         );
+
+  //         // Check if it's a "calculated" issue
+  //         if (alarm.alarmParameter.includes('_calculated')) {
+  //           const withoutCalculated = alarm.alarmParameter.replace(
+  //             '_calculated',
+  //             '',
+  //           );
+  //           const tagsWithoutCalculated = payloadKeys.filter((tag) =>
+  //             tag.toLowerCase().includes(withoutCalculated.toLowerCase()),
+  //           );
+  //           if (tagsWithoutCalculated.length > 0) {
+  //             this.logger.debug(
+  //               `🔍 Try without "_calculated": ${withoutCalculated}`,
+  //             );
+  //             this.logger.debug(
+  //               `🔍 Available: ${tagsWithoutCalculated.slice(0, 3).join(', ')}`,
+  //             );
+  //           }
+  //         }
+  //       }
+
   //       continue;
   //     }
 
@@ -981,7 +1077,7 @@ export class AlarmsService {
   //       subLocation: alarm.alarmSubLocation || null,
   //       device: alarm.alarmDevice || null,
   //       parameter: alarm.alarmParameter,
-  //       matchedTag: matchingKey, // Added for debugging
+  //       matchedTag: matchingKey,
   //       value,
   //       threshold: triggered,
   //       triggeredAt: occurrence.date,
@@ -1019,14 +1115,10 @@ export class AlarmsService {
   async processActiveAlarms() {
     this.logger.log('🚀 Starting alarm processing...');
 
-    const noderedlink = process.env.NODE_RED_LINK;
-
-    if (!noderedlink) {
-      throw new Error('NODE_RED_LINK is not defined in environment variables');
-    }
-
     // ✅ 1️⃣ Get Node-RED real-time data
-    const resp = await firstValueFrom(this.httpService.get(noderedlink));
+    const resp = await firstValueFrom(
+      this.httpService.get('http://43.204.118.114:6881/navy'),
+    );
 
     const payload = resp.data as Record<string, any>;
     if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
@@ -1038,7 +1130,26 @@ export class AlarmsService {
       `✅ Node-RED data received (${Object.keys(payload).length} tags)`,
     );
 
-    // ✅ 2️⃣ Fetch all alarms from DB
+    // ✅ 2️⃣ Calculate Custom KPIs using your FormulasService
+    const calculatedKPIs = await this.calculateCustomKPIs(payload);
+
+    // ✅ 3️⃣ Combine Direct and Calculated data
+    const allData = {
+      ...payload, // Direct KPIs from Node-RED
+      ...calculatedKPIs, // Custom KPIs from calculations
+    };
+
+    this.logger.debug(
+      `📊 Data sources: ${Object.keys(payload).length} direct, ${Object.keys(calculatedKPIs).length} calculated`,
+    );
+
+    // Log some calculated values for debugging
+    const sampleCalculated = Object.keys(calculatedKPIs).slice(0, 5);
+    this.logger.debug(
+      `📈 Sample calculated KPIs: ${sampleCalculated.join(', ')}`,
+    );
+
+    // ✅ 4️⃣ Fetch all alarms from DB
     const alarms = (await this.alarmsModel
       .find()
       .populate<{ alarmTriggerConfig: AlarmRulesSet }>('alarmTriggerConfig')
@@ -1050,193 +1161,182 @@ export class AlarmsService {
     const triggeredAlarms: any[] = [];
     const activeConfigIds = new Set<string>();
 
-    // ✅ SIMPLE & EFFECTIVE Helper function
+    // ✅ Helper function to identify parameter type
+    const getParameterType = (parameter: string): 'direct' | 'custom' => {
+      const mapping = this.meterSuffixMapping();
+
+      // Check if in Direct_KPIs (case insensitive)
+      const isDirect = mapping.Direct_KPIs.some(
+        (directParam) => directParam.toLowerCase() === parameter.toLowerCase(),
+      );
+
+      if (isDirect) return 'direct';
+
+      // Check if in Custom_KPIs (case insensitive)
+      const isCustom = mapping.Custom_KPIs.some(
+        (customParam) => customParam.toLowerCase() === parameter.toLowerCase(),
+      );
+
+      return isCustom ? 'custom' : 'direct'; // default to direct if unknown
+    };
+
+    // ✅ Simple matching function for BOTH direct and custom KPIs
     const findMatchingTag = (
       alarm: AlarmConfigWithPopulate,
-      payloadKeys: string[],
+      dataKeys: string[],
     ): string | null => {
       const alarmLocation = alarm.alarmLocation?.toLowerCase() || '';
       const alarmParameter = alarm.alarmParameter.toLowerCase();
+      const paramType = getParameterType(alarm.alarmParameter);
 
-      // 💡 **List of parameters that should be matched WITHOUT location**
-      const standaloneParams = [
-        // Battery & Electrical
-        'nominal_battery_voltage',
-        'battery_voltage_calculated',
-        'base_frequency_calculated',
-        'genset_frequency_op_calculated',
-
-        // Engine Parameters
-        'oil_pressure',
-        'boost_pressure',
-        'oil_temperature',
-        'coolant_temperature',
-        'intake_manifold_temperature_calculated',
-
-        // Fuel & Performance
-        'total_fuel_consumption_calculated',
-        'averagr_engine_speed',
-        'percent_engine_torque_or_duty_cycle',
-        'fuel_outlet_pressure_calculated',
-        'barometric_absolute_pressure',
-        'engine_running_time_calculated',
-        'fuel_rate',
-
-        // V/Hz Settings
-        'v_hz_rolloff_slope',
-        'v_hz_knee_frequency',
-
-        // Run Status
-        'genset_run_ss',
-
-        // Ratings
-        'application_nominal_current_pc2x',
-        'standby_nominal_current_pc2x',
-        'standby_kw_rating_pc2x',
-        'application_kw_rating_pc2x',
-        'standby_kva_rating_pc2x',
-        'application_kva_rating_pc2x',
-
-        // Power Factor
-        'total_power_factor_calculated',
-      ];
-
-      const isStandalone = standaloneParams.includes(alarmParameter);
-
-      // 🔍 **Strategy 1: For standalone params, match WITHOUT location**
-      if (isStandalone) {
-        for (const tag of payloadKeys) {
+      // 💡 **For CUSTOM parameters - NO location prefix**
+      if (paramType === 'custom') {
+        // Custom KPIs don't have location prefix
+        for (const tag of dataKeys) {
           const tagLower = tag.toLowerCase();
-
-          // 💡 **IMPORTANT: Don't remove "calculated" suffix!**
-          // Just compare as-is or with minimal cleaning
-          const cleanTag = tagLower.replace(
-            /_(pc2x|op|r1|r2|hmi113|aux\d+|extended)$/,
-            '',
-          );
-
-          if (cleanTag === alarmParameter) {
-            this.logger.debug(
-              `✅ Standalone match: ${tag} = ${alarmParameter}`,
-            );
-            return tag;
-          }
-
-          // Also try exact match (no cleaning)
           if (tagLower === alarmParameter) {
-            this.logger.debug(`✅ Exact match: ${tag} = ${alarmParameter}`);
-            return tag;
-          }
-        }
-      }
-
-      // 🔍 **Strategy 2: Try with location if provided**
-      if (alarmLocation) {
-        const expectedWithLocation = `${alarmLocation}_${alarmParameter}`;
-        for (const tag of payloadKeys) {
-          const tagLower = tag.toLowerCase();
-          const cleanTag = tagLower.replace(/_(pc2x|op)$/, '');
-
-          if (cleanTag === expectedWithLocation) {
             this.logger.debug(
-              `✅ Location match: ${tag} = ${expectedWithLocation}`,
+              `✅ Found CUSTOM KPI: ${tag} = ${alarmParameter}`,
             );
             return tag;
           }
         }
+        return null;
       }
 
-      // 🔍 **Strategy 3: Try parameter only (for all params)**
-      for (const tag of payloadKeys) {
-        const tagLower = tag.toLowerCase();
+      // 💡 **For DIRECT parameters**
+      if (paramType === 'direct') {
+        // List of standalone parameters (no location needed)
+        const standaloneParams = [
+          // Battery & Electrical
+          'nominal_battery_voltage',
+          'battery_voltage_calculated',
+          'base_frequency_calculated',
+          'genset_frequency_op_calculated',
 
-        // Try exact parameter match first
-        if (tagLower === alarmParameter) {
-          this.logger.debug(
-            `✅ Exact parameter match: ${tag} = ${alarmParameter}`,
-          );
-          return tag;
+          // Engine Parameters
+          'oil_pressure',
+          'boost_pressure',
+          'oil_temperature',
+          'coolant_temperature',
+          'intake_manifold_temperature_calculated',
+
+          // Fuel & Performance
+          'total_fuel_consumption_calculated',
+          'averagr_engine_speed',
+          'percent_engine_torque_or_duty_cycle',
+          'fuel_outlet_pressure_calculated',
+          'barometric_absolute_pressure',
+          'engine_running_time_calculated',
+          'fuel_rate',
+
+          // V/Hz Settings
+          'v_hz_rolloff_slope',
+          'v_hz_knee_frequency',
+
+          // Run Status
+          'genset_run_ss',
+
+          // Ratings
+          'application_nominal_current_pc2x',
+          'standby_nominal_current_pc2x',
+          'standby_kw_rating_pc2x',
+          'application_kw_rating_pc2x',
+          'standby_kva_rating_pc2x',
+          'application_kva_rating_pc2x',
+
+          // Power Factor
+          'total_power_factor_calculated',
+        ];
+
+        const isStandalone = standaloneParams.includes(alarmParameter);
+
+        // Strategy 1: For standalone params, match WITHOUT location
+        if (isStandalone) {
+          for (const tag of dataKeys) {
+            const tagLower = tag.toLowerCase();
+
+            // Try exact match first
+            if (tagLower === alarmParameter) {
+              this.logger.debug(
+                `✅ Found standalone DIRECT: ${tag} = ${alarmParameter}`,
+              );
+              return tag;
+            }
+
+            // Try with minimal suffix removal (keep _calculated)
+            const cleanTag = tagLower.replace(
+              /_(pc2x|op|r1|r2|hmi113|aux\d+|extended)$/,
+              '',
+            );
+            if (cleanTag === alarmParameter) {
+              this.logger.debug(
+                `✅ Found cleaned standalone: ${tag} = ${alarmParameter}`,
+              );
+              return tag;
+            }
+          }
         }
 
-        // Try with minimal suffix removal
-        const cleanTag = tagLower.replace(/_(pc2x|op)$/, '');
-        if (cleanTag === alarmParameter) {
-          this.logger.debug(
-            `✅ Clean parameter match: ${tag} = ${alarmParameter}`,
-          );
-          return tag;
+        // Strategy 2: Try with location if provided
+        if (alarmLocation) {
+          const expectedWithLocation = `${alarmLocation}_${alarmParameter}`;
+          for (const tag of dataKeys) {
+            const tagLower = tag.toLowerCase();
+            const cleanTag = tagLower.replace(/_(pc2x|op)$/, '');
+
+            if (cleanTag === expectedWithLocation) {
+              this.logger.debug(
+                `✅ Found location-based: ${tag} = ${expectedWithLocation}`,
+              );
+              return tag;
+            }
+          }
         }
 
-        // Try parameter at the end
-        if (tagLower.endsWith(`_${alarmParameter}`)) {
-          this.logger.debug(`✅ End match: ${tag} ends with ${alarmParameter}`);
-          return tag;
+        // Strategy 3: Try parameter only (fallback for all)
+        for (const tag of dataKeys) {
+          const tagLower = tag.toLowerCase();
+
+          if (tagLower === alarmParameter) {
+            this.logger.debug(
+              `✅ Found exact parameter: ${tag} = ${alarmParameter}`,
+            );
+            return tag;
+          }
         }
       }
 
       return null;
     };
 
-    // ✅ 3️⃣ Evaluate each alarm
+    // ✅ 5️⃣ Evaluate each alarm
     for (const alarm of alarms) {
+      const paramType = getParameterType(alarm.alarmParameter);
+
       // 🔹 Find matching tag
-      const matchingKey = findMatchingTag(alarm, Object.keys(payload));
+      const matchingKey = findMatchingTag(alarm, Object.keys(allData));
 
       if (!matchingKey) {
         this.logger.debug(
-          `⚠️ Tag not found for alarm: ${alarm.alarmLocation || 'N/A'}_${alarm.alarmParameter}`,
+          `⚠️ ${paramType.toUpperCase()} tag not found: ${alarm.alarmLocation || 'N/A'}_${alarm.alarmParameter}`,
           {
             alarmId: alarm._id,
             alarmName: alarm.alarmName,
+            type: paramType,
             location: alarm.alarmLocation,
             parameter: alarm.alarmParameter,
           },
         );
-
-        // 💡 **DEBUG: Show what's actually in payload**
-        const payloadKeys = Object.keys(payload);
-        const similarTags = payloadKeys.filter((tag) =>
-          tag
-            .toLowerCase()
-            .includes(
-              alarm.alarmParameter.toLowerCase().replace('_calculated', ''),
-            ),
-        );
-
-        if (similarTags.length > 0) {
-          this.logger.debug(
-            `🔍 Similar tags in payload: ${similarTags.slice(0, 5).join(', ')}`,
-          );
-
-          // Check if it's a "calculated" issue
-          if (alarm.alarmParameter.includes('_calculated')) {
-            const withoutCalculated = alarm.alarmParameter.replace(
-              '_calculated',
-              '',
-            );
-            const tagsWithoutCalculated = payloadKeys.filter((tag) =>
-              tag.toLowerCase().includes(withoutCalculated.toLowerCase()),
-            );
-            if (tagsWithoutCalculated.length > 0) {
-              this.logger.debug(
-                `🔍 Try without "_calculated": ${withoutCalculated}`,
-              );
-              this.logger.debug(
-                `🔍 Available: ${tagsWithoutCalculated.slice(0, 3).join(', ')}`,
-              );
-            }
-          }
-        }
-
         continue;
       }
 
-      const value = Number(payload[matchingKey]);
+      const value = Number(allData[matchingKey]);
 
       // Check if value is valid
       if (isNaN(value)) {
         this.logger.warn(
-          `⚠️ Invalid value for tag ${matchingKey}: ${payload[matchingKey]}`,
+          `⚠️ Invalid value for ${paramType} tag ${matchingKey}: ${allData[matchingKey]}`,
         );
         continue;
       }
@@ -1302,6 +1402,7 @@ export class AlarmsService {
         subLocation: alarm.alarmSubLocation || null,
         device: alarm.alarmDevice || null,
         parameter: alarm.alarmParameter,
+        parameterType: paramType, // Add parameter type
         matchedTag: matchingKey,
         value,
         threshold: triggered,
@@ -1316,25 +1417,119 @@ export class AlarmsService {
       });
 
       this.logger.warn(
-        `🚨 Alarm triggered: ${alarm.alarmName} | Value: ${value} | Threshold: ${triggered} | Tag: ${matchingKey}`,
+        `🚨 ${paramType.toUpperCase()} alarm triggered: ${alarm.alarmName} | Value: ${value} | Threshold: ${triggered}`,
       );
     }
 
-    // ✅ 4️⃣ Deactivate resolved alarms
+    // ✅ 6️⃣ Deactivate resolved alarms
     await this.deactivateResolvedAlarms(activeConfigIds);
 
     this.logger.log(
       `🏁 Alarm processing complete | Active alarms: ${triggeredAlarms.length}`,
     );
 
-    // ✅ 5️⃣ Log matching statistics for debugging
-    const matchedCount = triggeredAlarms.length;
-    const totalAlarms = alarms.length;
-    this.logger.debug(
-      `📊 Matching Statistics: ${matchedCount}/${totalAlarms} alarms matched with data`,
-    );
-
     return triggeredAlarms;
+  }
+
+  // ✅ Calculate Custom KPIs using FormulasService
+  private async calculateCustomKPIs(
+    payload: Record<string, any>,
+  ): Promise<Record<string, number>> {
+    const calculated: Record<string, number> = {};
+
+    try {
+      // Use your FormulasService to calculate all Custom KPIs
+      // Note: We need to pass single document (current data point)
+
+      // Extract current data point
+      const currentData = payload;
+
+      // Calculate each Custom KPI
+      calculated['Current_Imbalance'] =
+        this.formulasService.calculateCurrentImbalance(currentData);
+      calculated['Voltage_Imbalance'] =
+        this.formulasService.calculateVoltageImbalance(currentData);
+      calculated['Power_Loss_Factor'] =
+        this.formulasService.calculatePowerLossFactor(currentData);
+      calculated['Thermal_Stress'] =
+        this.formulasService.calculateThermalStress(currentData);
+      calculated['Neutral_Current'] =
+        this.formulasService.calculateNeutralCurrent(currentData);
+      calculated['Load_Percent'] =
+        this.formulasService.calculateLoadPercent(currentData);
+      calculated['Load_Stress'] =
+        this.formulasService.calculateLoadStress(currentData);
+
+      // Temperature related
+      calculated['Cooling_Margin'] =
+        this.formulasService.calculateCoolingMarginC(currentData);
+      calculated['OTSR'] = this.formulasService.calculateOTSRC(currentData);
+
+      // Fuel and Performance
+      calculated['Air_Fuel_Effectiveness'] =
+        this.formulasService.calculateAirFuelEffectiveness(currentData);
+      calculated['Fuel_Efficiency_Index'] =
+        this.formulasService.calculateFuelEfficiencyIndex(currentData);
+      calculated['Specific_Fuel_Consumption'] =
+        this.formulasService.calculateSpecificFuelConsumption(currentData);
+      calculated['Heat_Rate'] =
+        this.formulasService.calculateHeatRate(currentData);
+
+      // For these, we need historical data, so using simplified versions
+      calculated['Mechanical_Stress'] =
+        this.formulasService.calculateMechanicalStress(currentData);
+      calculated['Electrical_Stress'] =
+        this.formulasService.calculateElectricalStress(currentData);
+      calculated['Thermal_Efficiency'] =
+        this.formulasService.calculateThermalEfficiency(currentData);
+
+      // Note: For RPM_Stability_Index and Oscillation_Index, we need historical data
+      // For now, we'll set them to 0 or calculate with current data only
+      calculated['RPM_Stability_Index'] = 0; // Need historical data
+      calculated['Oscillation_Index'] = 0; // Need historical data
+
+      // Phase shares
+      calculated['Phase-A Share'] =
+        this.formulasService.calculateL1LoadSharing(currentData);
+      calculated['Phase-B Share'] =
+        this.formulasService.calculateL2LoadSharing(currentData);
+      calculated['Phase-C Share'] =
+        this.formulasService.calculateL3LoadSharing(currentData);
+
+      // I2 Heating is same as Thermal Stress
+      calculated['I2 Heating'] = calculated['Thermal_Stress'];
+
+      // For Load_Stress_Index, use Load_Stress
+      calculated['Load_Stress_Index'] = calculated['Load_Stress'];
+
+      // For Thermal_Stress_Index, use Thermal_Stress
+      calculated['Thermal_Stress_Index'] = calculated['Thermal_Stress'];
+
+      // For Mechanical_Stress_Index, use Mechanical_Stress
+      calculated['Mechanical_Stress_Index'] = calculated['Mechanical_Stress'];
+
+      // For Electrical_Stress_Index, use Electrical_Stress
+      calculated['Electrical_Stress_Index'] = calculated['Electrical_Stress'];
+
+      // For Fuel_Consumption and Fuel_Flow_Change, we need historical data
+      calculated['Fuel_Consumption'] = 0; // Need historical data
+      calculated['Fuel_Flow_Change'] = 0; // Need historical data
+
+      // Lubrication_Risk_Index
+      calculated['Lubrication_Risk_Index'] =
+        this.formulasService.calculateLubricationRiskIndex(currentData);
+
+      this.logger.debug(
+        `📈 Successfully calculated ${Object.keys(calculated).length} custom KPIs`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `❌ Error calculating custom KPIs: ${error.message}`,
+        error.stack,
+      );
+    }
+
+    return calculated;
   }
 
   async gethistoricalAlarms(filters: any = {}) {

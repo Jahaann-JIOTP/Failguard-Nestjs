@@ -46,90 +46,9 @@ export class FormulasService {
       : 0;
   }
 
-  // public calculateRunningHours(data: any[]): number {
-  //   if (data.length < 2) return 0;
-
-  //   let runningMinutes = 0;
-
-  //   for (let i = 1; i < data.length; i++) {
-  //     const prev = data[i - 1];
-  //     const curr = data[i];
-
-  //     // Check if generator was running in the previous record
-  //     const wasRunning = prev.Genset_Run_SS && prev.Genset_Run_SS > 0;
-
-  //     if (wasRunning) {
-  //       const prevTime = new Date(prev.timestamp).getTime();
-  //       const currTime = new Date(curr.timestamp).getTime();
-
-  //       if (!isNaN(prevTime) && !isNaN(currTime)) {
-  //         runningMinutes += (currTime - prevTime) / 60000; // convert ms → minutes
-  //       }
-  //     }
-  //   }
-
-  //   return +(runningMinutes / 60).toFixed(2); // convert minutes → hours
-  // }
-
   /** -------------------
    * CORRECT: Running Hours Calculation using Engine_Running_Time_calculated
    * ------------------- */
-  private calculateRunningHours(data: any[]): number {
-    if (data.length === 0) return 0;
-
-    // Method 1: Use the MAXIMUM running hours value from Engine_Running_Time_calculated
-    const runningHoursValues = data
-      .map((d) => d.Engine_Running_Time_calculated)
-      .filter(
-        (val) => val !== undefined && val !== null && !isNaN(val) && val > 0,
-      );
-
-    if (runningHoursValues.length > 0) {
-      const maxRunningHours = Math.max(...runningHoursValues);
-      // console.log(
-      //   `Running hours - Using Engine_Running_Time_calculated: ${maxRunningHours} hours (from ${runningHoursValues.length} valid records)`,
-      // );
-      return +maxRunningHours.toFixed(2);
-    }
-
-    // Method 2: Fallback - Calculate total time span when genset was ON
-    let totalRunningTimeMs = 0;
-    let lastRunningTime: number | null = null;
-
-    // Sort data by timestamp to be safe
-    const sortedData = [...data].sort(
-      (a, b) =>
-        new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
-    );
-
-    for (const record of sortedData) {
-      const isRunning = record.Genset_Run_SS >= 1 && record.Genset_Run_SS <= 6;
-      const currentTime = new Date(record.timestamp).getTime();
-
-      if (isRunning && lastRunningTime === null) {
-        // Genset started running
-        lastRunningTime = currentTime;
-      } else if (!isRunning && lastRunningTime !== null) {
-        // Genset stopped running, add to total
-        totalRunningTimeMs += currentTime - lastRunningTime;
-        lastRunningTime = null;
-      }
-    }
-
-    // If genset was still running at the end
-    if (lastRunningTime !== null) {
-      const endTime = new Date(
-        sortedData[sortedData.length - 1].timestamp,
-      ).getTime();
-      totalRunningTimeMs += endTime - lastRunningTime;
-    }
-
-    const runningHours = totalRunningTimeMs / (1000 * 60 * 60); // ms to hours
-    // console.log(
-    //   `Running hours - Calculated from timestamps: ${runningHours} hours`,
-    // );
-    return +runningHours.toFixed(2);
-  }
 
   /** -------------------
    * Dashboard 2 Formulas
@@ -189,23 +108,7 @@ export class FormulasService {
     ).toFixed(2);
   }
 
-  // calculateLoadPercent1(doc: any): number {
-  //   if (!doc.Genset_Total_KVA || !doc.Genset_Application_kVA_Rating_PC2X) {
-  //     return 0;
-  //   }
-  //   return +(
-  //     doc.Genset_Total_KVA / doc.Genset_Application_kVA_Rating_PC2X
-  //   ).toFixed(2);
-  // }
-
-  // calculateLoadStress(doc: any): number {
-  //   const loadPercent = this.calculateLoadPercent1(doc);
-  //   const pf = doc.Genset_Total_Power_Factor_calculated || 1;
-
-  //   return +(loadPercent * 1) / pf;
-  // }
-
-  // ✅ CORRECTED: Proper field checking with fallbacks
+  // CORRECTED: Proper field checking with fallbacks
   calculateLoadStress(doc: any): number {
     // console.log('=== Load Stress Detailed Debug ===');
 
@@ -244,7 +147,7 @@ export class FormulasService {
     return result;
   }
 
-  // ✅ SIMPLIFIED: Better load percent calculation
+  // SIMPLIFIED: Better load percent calculation
   calculateLoadPercent1(doc: any): number {
     // Try KVA first
     const kva = doc.Genset_Total_KVA || doc.Genset_Total_kVA || 0;
@@ -270,11 +173,6 @@ export class FormulasService {
     const value = 212;
     return +(value - coolant).toFixed(2);
   }
-
-  // calculateCoolingMarginC(doc: any): number {
-  //   const coolant = this.convertCoolantToCelsius(doc);
-  //   return +(100 - (coolant - 32) * 0.5).toFixed(2);
-  // }
 
   calculateCoolingMarginC(doc: any): number {
     const coolant = this.convertCoolantToCelsius(doc);
@@ -345,12 +243,6 @@ export class FormulasService {
    * Dashboard 4 Formulas
    * ------------------- */
 
-  // calculateLubricationRiskIndex(doc: any): number {
-  //   const oilPressure = doc.Oil_Pressure ?? 0;
-  //   const oilTemp = doc.Oil_Temperature ?? 0;
-  //   return oilTemp !== 0 ? +(oilPressure / oilTemp).toFixed(2) : 0;
-  // }
-
   calculateLubricationRiskIndex(doc: any): number {
     const oilPressure = doc.Oil_Pressure ?? 0;
     const oilTemp = this.convertOilTempToCelsius(doc) ?? 0;
@@ -405,12 +297,6 @@ export class FormulasService {
       ? +((fuelRate * 3.7854 * CV) / powerOutput).toFixed(3)
       : 0;
   }
-
-  // calculateFuelFlowRateChange(current: any, previous: any): number {
-  //   const currentRate = current.Fuel_Rate ?? 0;
-  //   const previousRate = previous?.Fuel_Rate ?? currentRate;
-  //   return +(currentRate - previousRate).toFixed(3);
-  // }
 
   calculateFuelFlowRateChange(current: any, previous: any): number {
     if (!previous || previous.Fuel_Rate == null || current.Fuel_Rate == null)
@@ -520,11 +406,6 @@ export class FormulasService {
     return results;
   }
 
-  // calculateMechanicalStress(doc: any): number {
-  //   const avg = doc.Averagr_Engine_Speed ?? 0;
-  //   return +((avg - 1500) / 1500).toFixed(3);
-  // }
-
   private lastTorque: number | null = null;
 
   calculateMechanicalStress(doc: any): number {
@@ -554,62 +435,6 @@ export class FormulasService {
 
     return +MSI.toFixed(3);
   }
-
-  // calculateElectricalStress(doc: any): number {
-  //   // Voltage Unbalance (VU)
-  //   const VL1 = doc.Genset_L1L2_Voltage ?? 0;
-  //   const VL2 = doc.Genset_L2L3_Voltage ?? 0;
-  //   const VL3 = doc.Genset_L3L1_Voltage ?? 0;
-  //   const Vavg = (VL1 + VL2 + VL3) / 3 || 1;
-  //   const VmaxDev =
-  //     (Math.max(
-  //       Math.abs(VL1 - Vavg),
-  //       Math.abs(VL2 - Vavg),
-  //       Math.abs(VL3 - Vavg),
-  //     ) /
-  //       Vavg) *
-  //     100;
-  //   const VU = Math.min(1, VmaxDev / 2); // 2% typical limit
-
-  //   // Current Unbalance (CU)
-  //   const IA = doc.Genset_L1_Current ?? 0;
-  //   const IB = doc.Genset_L2_Current ?? 0;
-  //   const IC = doc.Genset_L3_Current ?? 0;
-  //   const Iavg = (IA + IB + IC) / 3 || 1;
-  //   const ImaxDev =
-  //     (Math.max(Math.abs(IA - Iavg), Math.abs(IB - Iavg), Math.abs(IC - Iavg)) /
-  //       Iavg) *
-  //     100;
-  //   const CU = Math.min(1, ImaxDev / 10); // 10% typical limit
-
-  //   // Overload Index (OL)
-  //   const Inom = doc.Genset_Application_Nominal_Current_PC2X ?? 1;
-  //   const IpuA = IA / Inom;
-  //   const IpuB = IB / Inom;
-  //   const IpuC = IC / Inom;
-  //   const OL = Math.min(1, Math.max(IpuA, IpuB, IpuC) - 1);
-
-  //   // Power Factor Index (PFI)
-  //   const pf = doc.Genset_Total_Power_Factor_calculated ?? 1;
-  //   const pf_nom = 0.8; // datasheet value
-  //   const PFI = Math.min(1, (pf_nom - pf) / 0.1);
-
-  //   // Frequency Index (FI)
-  //   const freq = doc.Genset_Frequency ?? 50;
-  //   const deltaF = Math.abs(freq - 50);
-  //   const FI = Math.min(1, (deltaF * 100) / 50);
-
-  //   // Torque Index (TI)
-  //   const torquePct = doc.Percent_Engine_Torque_or_Duty_Cycle ?? 0; // 0–100
-  //   const TI = Math.min(1, torquePct / 100);
-
-  //   // Weighted Electrical Stress Index
-  //   const ESI =
-  //     0.2 * VU + 0.2 * CU + 0.25 * OL + 0.15 * PFI + 0.1 * FI + 0.1 * TI;
-  //   const ESI_percent = +(ESI * 100).toFixed(2);
-
-  //   return ESI_percent;
-  // }
 
   calculateElectricalStress(doc: any): number {
     // Extract currents
@@ -657,21 +482,6 @@ export class FormulasService {
 
     return +thermalEff.toFixed(2);
   }
-
-  // calculateEnergy(data: any[] | any): any[] {
-  //   const dataArray = Array.isArray(data) ? data : [data]; // wrap single object in array
-  //   let cumulative = 0;
-
-  //   return dataArray.map((d) => {
-  //     const energy = +(d.Genset_Total_kW * 308).toFixed(6);
-  //     cumulative += energy;
-  //     return {
-  //       ...d,
-  //       Energy_kWh: energy,
-  //       Cumulative_Energy_kWh: +cumulative.toFixed(6),
-  //     };
-  //   });
-  // }
 
   calculateEnergy(data: any[] | any): any[] {
     const dataArray = Array.isArray(data) ? data : [data]; // ensure array

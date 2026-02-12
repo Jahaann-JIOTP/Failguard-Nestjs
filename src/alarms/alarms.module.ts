@@ -18,6 +18,7 @@ import {
   AlarmOccurrence,
   AlarmsOccurrenceSchema,
 } from './schema/alarmOccurences.schema';
+import { FormulasService } from 'src/trends/formulas.service';
 
 @Module({
   imports: [
@@ -32,6 +33,6 @@ import {
     ]),
   ],
   controllers: [AlarmsController],
-  providers: [AlarmsService],
+  providers: [AlarmsService, FormulasService],
 })
 export class AlarmsModule {}

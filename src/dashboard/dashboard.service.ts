@@ -28,7 +28,7 @@ export class DashboardService {
     private readonly formulas: FormulasService,
   ) {
     this.collection = this.db.collection('navy_12s');
-    this.liveCollection = this.db.collection('navy_12s'); // ✅ ADD THIS LINE
+    this.liveCollection = this.db.collection('navy_12_live'); // ADD THIS LINE
   }
 
   /** -------------------
@@ -1273,8 +1273,8 @@ export class DashboardService {
     } else if (mode === 'live') {
       const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000); // 1 hour
       matchStage.timestamp = { $gte: oneHourAgo.toISOString() };
-      // matchStage.Genset_Run_SS = { $gte: 1 };
-      matchStage.Genset_Run_SS = 0;
+      matchStage.Genset_Run_SS = { $gte: 1 };
+      // matchStage.Genset_Run_SS = 0;
       console.log('Live mode → Last 1 hour with Genset_Run_SS >= 1');
     }
 
