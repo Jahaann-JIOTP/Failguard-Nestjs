@@ -19,7 +19,7 @@ export class NodeRedLinkService {
   async fetchDataFromNodeRed() {
     try {
       const res = await this.httpService.axiosRef.get(
-        process.env.NODERED_URL || 'http://localhost:1880/navy',
+        process.env.NODE_RED_LINK || 'http://43.204.118.114:6881/navy',
       );
       return res.data;
     } catch (error) {
