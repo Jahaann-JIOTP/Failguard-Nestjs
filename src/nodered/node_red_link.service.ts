@@ -11,10 +11,7 @@ import { HttpService } from '@nestjs/axios';
 export class NodeRedLinkService {
   private readonly logger = new Logger(NodeRedLinkService.name);
 
-  constructor(
-    private readonly httpService: HttpService,
-    // private readonly alarmService: AlarmService,
-  ) {}
+  constructor(private readonly httpService: HttpService) {}
 
   async fetchDataFromNodeRed() {
     try {
