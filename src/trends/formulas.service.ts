@@ -544,4 +544,17 @@ export class FormulasService {
     const fn = 50;
     return +Math.abs(ft - fn).toFixed(2);
   }
+
+  private calculateTotalFuelConsumed(data: any[]): number {
+    const fuelField = 'Total_Fuel_Consumption_calculated';
+    const fuelValues = data
+      .map((d) => d[fuelField])
+      .filter((val) => val !== undefined && val !== null);
+
+    const maxFuel = Math.max(...fuelValues);
+    const minFuel = Math.min(...fuelValues);
+    const totalFuelConsumed = maxFuel - minFuel; // MAX - MIN of entire range
+
+    return +totalFuelConsumed.toFixed(2);
+  }
 }

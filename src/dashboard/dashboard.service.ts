@@ -247,6 +247,91 @@ export class DashboardService {
     return results;
   }
 
+  private async getLatestGensetRunPeriod(): Promise<{
+    firstDoc: any;
+    lastDoc: any;
+  } | null> {
+    const pipeline = [
+      {
+        $match: {
+          timestamp: { $gte: this.getTodayStartTime() }, // Aaj se start
+        },
+      },
+      { $sort: { timestamp: 1 } },
+    ];
+
+    const allDocs = await this.liveCollection.aggregate(pipeline).toArray();
+
+    console.log(`\n📊 Total documents today: ${allDocs.length}`);
+
+    const periods: Array<{ firstDoc: any; lastDoc: any }> = [];
+    let currentPeriod: any[] = [];
+    let wasGensetOn = false;
+
+    for (const doc of allDocs) {
+      const isGensetOn = doc.Genset_Run_SS >= 1;
+
+      // ✅ Sirf status change se period break detect karo
+      if (isGensetOn !== wasGensetOn) {
+        // Period break detected
+        if (currentPeriod.length > 0) {
+          console.log(`\n🔴 Period Complete:`);
+          console.log(`   First: ${currentPeriod[0].timestamp}`);
+          console.log(
+            `   Last:  ${currentPeriod[currentPeriod.length - 1].timestamp}`,
+          );
+
+          periods.push({
+            firstDoc: currentPeriod[0],
+            lastDoc: currentPeriod[currentPeriod.length - 1],
+          });
+        }
+
+        // Naya period start karo agar genset ON hai
+        if (isGensetOn) {
+          console.log(`\n🟢 New Period Started: ${doc.timestamp}`);
+          currentPeriod = [doc];
+        } else {
+          currentPeriod = [];
+        }
+      } else if (isGensetOn) {
+        // Same period continue
+        currentPeriod.push(doc);
+      }
+
+      wasGensetOn = isGensetOn;
+    }
+
+    // Last period add karo
+    if (currentPeriod.length > 0) {
+      console.log(`\n📌 Current Period (Ongoing):`);
+      console.log(`   First: ${currentPeriod[0].timestamp}`);
+      console.log(
+        `   Last:  ${currentPeriod[currentPeriod.length - 1].timestamp}`,
+      );
+
+      periods.push({
+        firstDoc: currentPeriod[0],
+        lastDoc: currentPeriod[currentPeriod.length - 1],
+      });
+    }
+
+    // ✅ Latest period return karo
+    return periods.length > 0 ? periods[periods.length - 1] : null;
+  }
+
+  private getTodayStartTime(): string {
+    const now = new Date();
+
+    // Pakistan time (UTC+5) ke hisaab se aaj ki start time (00:00:00)
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+
+    // ISO format with +05:00 timezone
+    return `${year}-${month}-${day}T00:00:00+05:00`;
+  }
+
   private async fetchDashboardData(
     mode: 'live' | 'historic' | 'range',
     config: DashboardConfig,
@@ -352,11 +437,76 @@ export class DashboardService {
     let fuelConsumedCurrentRun;
     let fuelConsumedCurrentRunLiters;
     if (mode === 'live') {
-      fuelConsumedCurrentRun = latest.Total_Fuel_Consumption_calculated || 0;
-      fuelConsumedCurrentRunLiters = fuelConsumedCurrentRun * 3.7854;
-      console.log(
-        `Live mode - Fuel Consumed Current Run from latest: ${fuelConsumedCurrentRun} gallons = ${fuelConsumedCurrentRunLiters} liters`,
-      );
+      // fuelConsumedCurrentRun = latest.Total_Fuel_Consumption_calculated || 0;
+      // fuelConsumedCurrentRunLiters = fuelConsumedCurrentRun * 3.7854;
+      // console.log(
+      //   `Live mode - Fuel Consumed Current Run from latest: ${fuelConsumedCurrentRun} gallons = ${fuelConsumedCurrentRunLiters} liters`,
+      // );
+
+      // // Pehla document fetch karo genset ON hone ke baad ka
+      // const firstLiveDoc = await this.getFirstLiveDocumentSinceGensetOn();
+
+      // // 2. Latest document latest variable mein already hai
+      // if (firstLiveDoc && latest) {
+      //   const firstFuel = firstLiveDoc.Total_Fuel_Consumption_calculated;
+      //   const latestFuel = latest.Total_Fuel_Consumption_calculated;
+
+      //   // ✅ DONO KE LIYE SAME FORMULA (latest - first)
+      //   const fuelDifference = Math.max(0, latestFuel - firstFuel);
+
+      //   fuelConsumedCurrentRun = fuelDifference;
+      //   fuelConsumedCurrentRunLiters = fuelDifference * 3.7854;
+
+      //   // ✅ fuelConsumed bhi same formula se
+      //   totalFuelConsumed = fuelDifference;
+      //   totalFuelConsumedLiters = fuelDifference * 3.7854;
+
+      //   console.log(`Live Fuel Calculation:`);
+      //   console.log(`- First document fuel: ${firstFuel} gallons`);
+      //   console.log(`- Latest document fuel: ${latestFuel} gallons`);
+      //   console.log(
+      //     `- Difference: ${fuelDifference} gallons = ${fuelDifference * 3.7854} liters`,
+      //   );
+      //   console.log(`✅ fuelConsumed: ${totalFuelConsumedLiters} liters`);
+      //   console.log(
+      //     `✅ fuelConsumedCurrentRun: ${fuelConsumedCurrentRunLiters} liters`,
+      //   );
+      // }
+      //
+      // ✅ Sirf latest period ka first aur last document fetch karo
+      const latestPeriod = await this.getLatestGensetRunPeriod();
+
+      if (latestPeriod && latestPeriod.firstDoc && latestPeriod.lastDoc) {
+        // Latest period ke first aur last fuel values
+        const firstFuel =
+          latestPeriod.firstDoc.Total_Fuel_Consumption_calculated || 0;
+        const lastFuel =
+          latestPeriod.lastDoc.Total_Fuel_Consumption_calculated || 0;
+
+        // ✅ DONO KE LIYE SAME FORMULA (last - first of latest period)
+        const fuelDifference = Math.max(0, lastFuel - firstFuel);
+
+        fuelConsumedCurrentRun = fuelDifference;
+        fuelConsumedCurrentRunLiters = fuelDifference * 3.7854;
+
+        // ✅ fuelConsumed bhi same formula se (latest period ka)
+        totalFuelConsumed = fuelDifference;
+        totalFuelConsumedLiters = fuelDifference * 3.7854;
+
+        console.log(`✅ Latest Period Fuel Calculation:`);
+        console.log(`- Period first document fuel: ${firstFuel} gallons`);
+        console.log(`- Period last document fuel: ${lastFuel} gallons`);
+        console.log(
+          `- Difference: ${fuelDifference} gallons = ${fuelDifference * 3.7854} liters`,
+        );
+      } else {
+        // ❌ Koi period nahi mila
+        console.log(`⚠️ No run period found`);
+        fuelConsumedCurrentRun = 0;
+        fuelConsumedCurrentRunLiters = 0;
+        totalFuelConsumed = 0;
+        totalFuelConsumedLiters = 0;
+      }
     } else {
       // ✅ PASS END DATE TO CALCULATION
       fuelConsumedCurrentRun = this.calculateFuelConsumedCurrentRun(
