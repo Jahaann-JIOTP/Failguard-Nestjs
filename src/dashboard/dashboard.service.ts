@@ -395,13 +395,29 @@ export class DashboardService {
     let totalHoursDecimal; // ✅ ADD THIS
     let totalHoursFormatted; // ✅ ADD THIS
 
+    // Yeh poori condition replace karo (line ~270-280 ke around)
+
     if (mode === 'live') {
-      runningHoursDecimal = latest.Engine_Running_Time_calculated || 0;
-      totalHoursDecimal = latest.Engine_Running_Time_calculated || 0; // ✅ ADD
+      const latestPeriod = await this.getLatestGensetRunPeriod();
+
+      if (latestPeriod && latestPeriod.firstDoc && latestPeriod.lastDoc) {
+        const firstTime = new Date(latestPeriod.firstDoc.timestamp).getTime();
+        const lastTime = new Date(latestPeriod.lastDoc.timestamp).getTime();
+        runningHoursDecimal = (lastTime - firstTime) / (1000 * 60 * 60);
+
+        console.log('✅ LIVE RUNNING HOURS (Current Run):');
+        console.log(`   Started: ${latestPeriod.firstDoc.timestamp}`);
+        console.log(`   Current: ${latestPeriod.lastDoc.timestamp}`);
+        console.log(`   Duration: ${runningHoursDecimal.toFixed(2)} hours`);
+      } else {
+        runningHoursDecimal = 0;
+      }
+
+      totalHoursDecimal = runningHoursDecimal;
     } else {
-      // For historic/range mode, calculate from data
+      // Historic/range mode
       runningHoursDecimal = this.calculateRunningHours(formattedData);
-      totalHoursDecimal = this.calculateTotalHours(formattedData); // ✅ ADD
+      totalHoursDecimal = this.calculateTotalHours(formattedData);
     }
 
     // Convert to formatted hours
@@ -1197,25 +1213,126 @@ export class DashboardService {
     }
   }
 
-  // private mapMetricsDashboard6WithMode(doc: any, data: any[], mode: string) {
+  // private mapMetricsDashboard6WithMode(
+  //   doc: any,
+  //   data: any[],
+  //   mode: string,
+  // ): Record<string, any> {
+  //   console.log('=== DASHBOARD 6 PRODUCTION CALCULATION ===');
+  //   console.log('Total data points:', data.length);
+
+  //   // ✅ SABHI DATA POINTS KA TOTAL PRODUCTION (Report wala formula)
+  //   let totalProductionKWh = 0;
+  //   let totalFuelConsumption = 0;
+  //   let runningHours = 0;
+
+  //   if (data.length > 0) {
+  //     // 1. TOTAL PRODUCTION: Genset_Total_kW × 0.000833 × (sabhi data points)
+  //     totalProductionKWh = data.reduce((sum, record) => {
+  //       const kW = record.Genset_Total_kW || 0;
+  //       const productionPerRecord = kW * 0.000833 * 4;
+  //       return sum + productionPerRecord;
+  //     }, 0);
+
+  //     console.log('Production per record formula: kW × 0.000833');
+  //     console.log('Example: 100 kW × 0.000833 = 0.0833 kWh per record');
+
+  //     // 2. TOTAL FUEL CONSUMPTION (Report wala formula)
+  //     const fuelValues = data
+  //       .map((d) => d.Total_Fuel_Consumption_calculated)
+  //       .filter((val) => val !== undefined && val !== null && !isNaN(val));
+
+  //     if (fuelValues.length >= 2) {
+  //       const maxFuel = Math.max(...fuelValues);
+  //       const minFuel = Math.min(...fuelValues);
+  //       totalFuelConsumption = maxFuel - minFuel;
+  //     }
+
+  //     // 3. RUNNING HOURS
+  //     runningHours = this.calculateRunningHours(data);
+
+  //     // Debug print
+  //     // console.log('=== CALCULATION RESULTS ===');
+  //     // console.log(`Data points: ${data.length}`);
+  //     // console.log(`Total Production: ${totalProductionKWh.toFixed(2)} kWh`);
+  //     // console.log(
+  //     //   `Total Fuel Consumed: ${totalFuelConsumption.toFixed(2)} gallons`,
+  //     // );
+  //     // console.log(`Running Hours: ${runningHours.toFixed(2)} hours`);
+
+  //     // First 3 records check
+  //     //   console.log('First 3 records production:');
+  //     //   for (let i = 0; i < Math.min(3, data.length); i++) {
+  //     //     const kW = data[i].Genset_Total_kW || 0;
+  //     //     const production = kW * 0.000833;
+  //     //     console.log(`  Record ${i}: ${kW} kW → ${production.toFixed(4)} kWh`);
+  //     //   }
+  //   }
+
   //   if (mode === 'live') {
+  //     // Live mode: Latest record values
+  //     const latest = doc;
+  //     const instantProduction = (latest.Genset_Total_kW || 0) * 0.000833;
+
   //     return {
-  //       totalFuelConsumption: doc.Total_Fuel_Consumption_calculated ?? 0,
-  //       energyKWh: this.formulas.calculateEnergy(doc)[0]?.Energy_kWh ?? 0,
-  //       fuelConsumptionCurrentRun: doc.Fuel_Consumption_Current_Run ?? 0,
+  //       // ✅ TOTAL PRODUCTION (SABHI DATA POINTS KA)
+  //       totalProductionKWh: +totalProductionKWh.toFixed(2),
+
+  //       // Instant/Current values
+  //       instantProductionKWh: +instantProduction.toFixed(4),
+  //       currentPowerKW: latest.Genset_Total_kW || 0,
+
+  //       // Fuel metrics
+  //       totalFuelConsumptionGallons: +totalFuelConsumption.toFixed(2),
+  //       totalFuelConsumptionLiters: +(totalFuelConsumption * 3.7854).toFixed(2),
+  //       fuelConsumptionCurrentRun: latest.Fuel_Consumption_Current_Run ?? 0,
+
+  //       // Time metrics
+  //       runningHours: +runningHours.toFixed(2),
+  //       runningHoursFormatted:
+  //         this.convertToHoursMinutes(runningHours).totalHours,
+
+  //       // Efficiency
+  //       specificFuelConsumption:
+  //         totalFuelConsumption > 0
+  //           ? +(totalFuelConsumption / totalProductionKWh).toFixed(4)
+  //           : 0,
   //     };
   //   } else {
+  //     // Historic/Range mode
   //     const metricsConfig = {
-  //       totalFuelConsumption: (d: any) =>
-  //         d.Total_Fuel_Consumption_calculated ?? 0,
-  //       // ✅ FIX: Make this a function that takes a document parameter
-  //       // energyKWh: (d: any) =>
-  //       //   this.formulas.calculateEnergy(d)[0]?.Energy_kWh ?? 0,
+  //       // These will be averages
+  //       // currentPowerKW: (d: any) => d.Genset_Total_kW || 0,
+  //       // instantProductionKWh: (d: any) => (d.Genset_Total_kW || 0) * 0.000833,
   //       fuelConsumptionCurrentRun: (d: any) =>
   //         d.Fuel_Consumption_Current_Run ?? 0,
   //     };
 
-  //     return this.calculateAverageMetrics(data, metricsConfig);
+  //     const averages = this.calculateAverageMetrics(data, metricsConfig);
+
+  //     // ✅ RETURN BOTH: AVERAGES + TOTALS
+  //     return {
+  //       // Averages (for charts, trends)
+  //       ...averages,
+
+  //       // ✅ TOTALS (Report ke hisaab se - SABHI DATA POINTS KA)
+  //       energyKWh: +totalProductionKWh.toFixed(2),
+  //       // totalFuelConsumptionGallons: +totalFuelConsumption.toFixed(2),
+  //       // totalFuelConsumptionLiters: +(totalFuelConsumption * 3.7854).toFixed(2),
+  //       runningHours: +runningHours.toFixed(2),
+  //       runningHoursFormatted:
+  //         this.convertToHoursMinutes(runningHours).totalHours,
+
+  //       // Efficiency metrics
+  //       fuelEfficiencyIndex:
+  //         totalFuelConsumption > 0
+  //           ? +(totalProductionKWh / (totalFuelConsumption * 3.7854)).toFixed(2)
+  //           : 0,
+  //       specificFuelConsumption:
+  //         totalProductionKWh > 0
+  //           ? +((totalFuelConsumption * 3.7854) / totalProductionKWh).toFixed(4)
+  //           : 0,
+  //     };
   //   }
   // }
 
@@ -1226,8 +1343,9 @@ export class DashboardService {
   ): Record<string, any> {
     console.log('=== DASHBOARD 6 PRODUCTION CALCULATION ===');
     console.log('Total data points:', data.length);
+    console.log('Mode:', mode);
 
-    // ✅ SABHI DATA POINTS KA TOTAL PRODUCTION (Report wala formula)
+    // ✅ SABHI DATA POINTS KA TOTAL PRODUCTION
     let totalProductionKWh = 0;
     let totalFuelConsumption = 0;
     let runningHours = 0;
@@ -1236,14 +1354,11 @@ export class DashboardService {
       // 1. TOTAL PRODUCTION: Genset_Total_kW × 0.000833 × (sabhi data points)
       totalProductionKWh = data.reduce((sum, record) => {
         const kW = record.Genset_Total_kW || 0;
-        const productionPerRecord = kW * 0.000833 * 4;
+        const productionPerRecord = kW * 0.000833 * 4; // 4 records per minute?
         return sum + productionPerRecord;
       }, 0);
 
-      console.log('Production per record formula: kW × 0.000833');
-      console.log('Example: 100 kW × 0.000833 = 0.0833 kWh per record');
-
-      // 2. TOTAL FUEL CONSUMPTION (Report wala formula)
+      // 2. TOTAL FUEL CONSUMPTION
       const fuelValues = data
         .map((d) => d.Total_Fuel_Consumption_calculated)
         .filter((val) => val !== undefined && val !== null && !isNaN(val));
@@ -1256,23 +1371,6 @@ export class DashboardService {
 
       // 3. RUNNING HOURS
       runningHours = this.calculateRunningHours(data);
-
-      // Debug print
-      // console.log('=== CALCULATION RESULTS ===');
-      // console.log(`Data points: ${data.length}`);
-      // console.log(`Total Production: ${totalProductionKWh.toFixed(2)} kWh`);
-      // console.log(
-      //   `Total Fuel Consumed: ${totalFuelConsumption.toFixed(2)} gallons`,
-      // );
-      // console.log(`Running Hours: ${runningHours.toFixed(2)} hours`);
-
-      // First 3 records check
-      //   console.log('First 3 records production:');
-      //   for (let i = 0; i < Math.min(3, data.length); i++) {
-      //     const kW = data[i].Genset_Total_kW || 0;
-      //     const production = kW * 0.000833;
-      //     console.log(`  Record ${i}: ${kW} kW → ${production.toFixed(4)} kWh`);
-      //   }
     }
 
     if (mode === 'live') {
@@ -1280,7 +1378,23 @@ export class DashboardService {
       const latest = doc;
       const instantProduction = (latest.Genset_Total_kW || 0) * 0.000833;
 
+      // ✅ ENERGY PRODUCTION CALCULATION FOR LIVE MODE
+      // Live mode mein bhi totalProductionKWh calculate karo available data se
+      // Agar data.length 1 hai to sirf instantProduction use karo
+
+      let liveEnergyKWh = 0;
+      if (data.length >= 2) {
+        // Agar multiple records hain to total production use karo
+        liveEnergyKWh = totalProductionKWh;
+      } else {
+        // Sirf ek record hai to instantProduction * 0.25 (15 minutes assume karo)
+        liveEnergyKWh = instantProduction * 0.25;
+      }
+
       return {
+        // ✅ ENERGY KWH - LIVE MODE MEIN BHI
+        energyKWh: +liveEnergyKWh.toFixed(2),
+
         // ✅ TOTAL PRODUCTION (SABHI DATA POINTS KA)
         totalProductionKWh: +totalProductionKWh.toFixed(2),
 
@@ -1298,7 +1412,7 @@ export class DashboardService {
         runningHoursFormatted:
           this.convertToHoursMinutes(runningHours).totalHours,
 
-        // Efficiency
+        // ✅ EFFICIENCY METRICS
         specificFuelConsumption:
           totalFuelConsumption > 0
             ? +(totalFuelConsumption / totalProductionKWh).toFixed(4)
@@ -1307,24 +1421,18 @@ export class DashboardService {
     } else {
       // Historic/Range mode
       const metricsConfig = {
-        // These will be averages
-        // currentPowerKW: (d: any) => d.Genset_Total_kW || 0,
-        // instantProductionKWh: (d: any) => (d.Genset_Total_kW || 0) * 0.000833,
         fuelConsumptionCurrentRun: (d: any) =>
           d.Fuel_Consumption_Current_Run ?? 0,
       };
 
       const averages = this.calculateAverageMetrics(data, metricsConfig);
 
-      // ✅ RETURN BOTH: AVERAGES + TOTALS
       return {
         // Averages (for charts, trends)
         ...averages,
 
-        // ✅ TOTALS (Report ke hisaab se - SABHI DATA POINTS KA)
+        // ✅ TOTALS
         energyKWh: +totalProductionKWh.toFixed(2),
-        // totalFuelConsumptionGallons: +totalFuelConsumption.toFixed(2),
-        // totalFuelConsumptionLiters: +(totalFuelConsumption * 3.7854).toFixed(2),
         runningHours: +runningHours.toFixed(2),
         runningHoursFormatted:
           this.convertToHoursMinutes(runningHours).totalHours,
